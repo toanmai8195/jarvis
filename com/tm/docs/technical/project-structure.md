@@ -8,7 +8,7 @@ snaptix/
 ├── .github/workflows/        # CI chạy theo đường dẫn thay đổi
 ├── deploy/                   # docker-compose, observability — dùng cho cả server lẫn app
 ├── loadtest/                 # kịch bản k6, kết quả theo phase
-├── scripts/                  # script kiểm tra repo (cấu trúc, .gitignore) + test của chúng
+├── scripts/                  # script kiểm tra repo (cấu trúc, compose), script CI (ci-*.sh) + test *_test.sh
 └── com/tm/
     ├── server/               # Go — Bazel workspace
     ├── app/                  # Node.js + React — pnpm workspace
@@ -34,6 +34,7 @@ com/tm/server/
 ├── BUILD.bazel               # target gazelle + directive, platform linux_amd64 / linux_arm64
 ├── .bazelrc                  # pure Go, CGO off, --config=linux-arm64|amd64, profile release
 ├── .bazelversion             # 8.7.0 (rules_oci chưa hỗ trợ Bazel 9)
+├── .golangci.yml             # golangci-lint v2 (pin v2.14.0), preset standard + gofmt
 ├── tools/
 │   ├── rules/
 │   │   ├── BUILD.bazel           # toolchain bsdtar cho `bazel run <name>_docker` khi cross-build
@@ -230,12 +231,21 @@ Kiểm tra cái giá của việc dùng chung: `bazel query 'rdeps(//..., //pkg/
 
 ## CI
 
+Một workflow `.github/workflows/ci.yml` (PR vào `main` và push lên `main`): job `changes` luôn chạy và tính vùng đổi, job `server` / `app` chỉ chạy khi vùng tương ứng đổi (`if`, không lọc bằng `paths:` — job skipped vẫn đạt khi làm required check). Logic nằm trong `scripts/ci-*.sh`, chạy lại cục bộ được (xem [local-setup](local-setup.md#build--kiểm-thử)).
+
 | Thay đổi | Chạy |
 |---|---|
-| `com/tm/server/**` | `bazel test` các target bị ảnh hưởng |
-| `com/tm/app/**` | `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint\|test\|build)$/'` (xem ghi chú dưới bảng) |
-| `com/tm/server/api/**`, `com/tm/app/api/**` | Cả hai + sinh lại code và `git diff --exit-code` |
-| `com/tm/docs/**` | Kiểm tra link markdown |
+| `com/tm/server/**` | `golangci-lint run ./...` (v2.14.0, `.golangci.yml`) + `bazel test` các target bị ảnh hưởng (`scripts/ci-server.sh`) |
+| `com/tm/app/**` | `pnpm install --frozen-lockfile` → `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint\|test\|build)$/'` → `git diff --exit-code pnpm-lock.yaml` (`scripts/ci-app.sh`, xem ghi chú dưới bảng) |
+| `.github/workflows/**`, `scripts/ci-*` | Cả hai job (để chạy thử thay đổi CI) |
+| `com/tm/server/api/**`, `com/tm/app/api/**` | Cả hai + sinh lại code và `git diff --exit-code` — *chưa có, thêm khi có codegen* |
+| `com/tm/docs/**` | Kiểm tra link markdown — *chưa có* |
+
+Base của diff: PR → merge-base với `origin/<nhánh đích>`; push lên `main` → `github.event.before` (base rỗng / 40 số 0 → chạy tất cả). Checkout `fetch-depth: 0`.
+
+Target Bazel bị ảnh hưởng (`scripts/ci-affected.sh`, G14): file đổi → label (`//<pkg>:<file>`; file `BUILD` đổi hoặc file bị xoá → `//<pkg>:all`), lọc label không phải target (`bazel query --keep_going`), rồi `tests(rdeps(//..., set(...)))` bỏ tag `manual`. File toàn cục (`MODULE.bazel`, `MODULE.bazel.lock`, `go.mod`, `go.sum`, `.bazelrc`, `.bazelversion`, `BUILD.bazel` gốc, mọi `*.bzl`) → `//...`. Không có target nào → bỏ qua `bazel test` (tránh `No test targets were found`, exit 4).
+
+App chạy **mọi** package (`--recursive --filter '!snaptix-app'`) khi `package.json` gốc, `pnpm-workspace.yaml`, `pnpm-lock.yaml` hoặc file CI đổi — filter `...[base]` + `!snaptix-app` khi đó không chọn package nào.
 
 Ghi chú lệnh pnpm (đã kiểm ở P0-T01b):
 - **Không** viết `pnpm --filter ... lint test build`: pnpm chỉ chạy script đầu tiên (`lint`) và coi `test build` là **đối số** của nó — lỗi bị che vì exit 0. Chạy nhiều script bằng regex: `run '/^(lint|test|build)$/'` (các script khớp chạy **đồng thời** trong cùng package, package vẫn theo thứ tự topo), hoặc gọi lần lượt từng lệnh nếu cần tuần tự.

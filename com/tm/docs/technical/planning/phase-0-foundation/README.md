@@ -65,7 +65,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `build(server): goose v3.28.0, thư mục migration db/core và db/analytics với migration rỗng 00001_init [P0-T03]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T04** GitHub Actions chạy theo đường dẫn thay đổi: `com/tm/server/**` → `golangci-lint` + `bazel test` target bị ảnh hưởng; `com/tm/app/**` → `pnpm --filter "...[origin/main]" lint test build` `[G14]`
+- [x] **P0-T04** GitHub Actions chạy theo đường dẫn thay đổi: `com/tm/server/**` → `golangci-lint` + `bazel test` target bị ảnh hưởng; `com/tm/app/**` → `pnpm --filter "...[origin/main]" lint test build` `[G14]`
+  - [x] 1. Test case: P0-T04-TC01..TC27 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `ci: GitHub Actions theo đường dẫn thay đổi — golangci-lint v2.14.0 + bazel test target bị ảnh hưởng, pnpm lint/test/build package bị ảnh hưởng [P0-T04][G14]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T05** Makefile / script: `make up`, `make migrate`, `make test`
 - [ ] **P0-T06** Dashboard Grafana cơ bản: RED metrics cho mỗi service
 

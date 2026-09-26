@@ -1,0 +1,129 @@
+# CI chạy theo đường dẫn thay đổi (project-structure.md mục CI, G14).
+#
+#   changes  luôn chạy: scripts/ci-changes.sh tính vùng đổi → output server/app
+#   server   chỉ khi com/tm/server/** đổi: golangci-lint + bazel test target bị
+#            ảnh hưởng (scripts/ci-server.sh → scripts/ci-affected.sh)
+#   app      chỉ khi com/tm/app/** đổi: pnpm install --frozen-lockfile + lint/
+#            test/build package bị ảnh hưởng (scripts/ci-app.sh)
+#   File của chính CI (.github/workflows/**, scripts/ci-*) đổi → chạy cả hai.
+#
+# Không lọc bằng `paths:` ở cấp `on:`: job bị bỏ qua do `if` hiện "skipped" và
+# được tính là đạt khi làm required check; workflow bị `paths:` lọc thì check
+# treo "pending".
+#
+# Base của diff: PR → origin/<nhánh đích>; push lên main → github.event.before
+# (dùng origin/main cho push sẽ diff với chính nó, ra rỗng). Chạy lại cục bộ:
+#   bash scripts/ci-changes.sh origin/main HEAD
+#   bash scripts/ci-server.sh origin/main
+#   bash scripts/ci-app.sh origin/main
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      base: ${{ steps.base.outputs.base }}
+      server: ${{ steps.changes.outputs.server }}
+      app: ${{ steps.changes.outputs.app }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Base của diff
+        id: base
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base="origin/$BASE_REF"
+          else
+            base="$BEFORE"
+          fi
+          echo "base=$base" | tee -a "$GITHUB_OUTPUT"
+      - name: Vùng thay đổi
+        id: changes
+        env:
+          BASE: ${{ steps.base.outputs.base }}
+        run: bash scripts/ci-changes.sh "$BASE" HEAD | tee -a "$GITHUB_OUTPUT"
+
+  server:
+    name: server (golangci-lint + bazel test)
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # Go theo go.mod — golangci-lint cần Go toolchain cùng bản với module.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: com/tm/server/go.mod
+          cache: false
+      # Bazelisk → Bazel theo com/tm/server/.bazelversion (8.7.0).
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          bazelisk-version: 1.29.0
+          module-root: com/tm/server
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: v2.14.0
+          install-only: true
+          skip-cache: true
+      - name: Phiên bản toolchain
+        working-directory: com/tm/server
+        run: |
+          go version
+          bazel --version
+          golangci-lint --version
+      - name: golangci-lint + bazel test target bị ảnh hưởng
+        env:
+          BASE: ${{ needs.changes.outputs.base }}
+        run: bash scripts/ci-server.sh "$BASE" HEAD
+
+  app:
+    name: app (pnpm lint/test/build)
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # pnpm theo `packageManager` (pnpm@11.18.0) trong com/tm/app/package.json.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        with:
+          package_json_file: com/tm/app/package.json
+      # Node theo `engines.node` (>=22) trong com/tm/app/package.json.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: com/tm/app/package.json
+          package-manager-cache: false
+      - name: Phiên bản toolchain
+        working-directory: com/tm/app
+        run: |
+          node --version
+          pnpm --version
+      - name: pnpm install --frozen-lockfile + lint/test/build package bị ảnh hưởng
+        env:
+          BASE: ${{ needs.changes.outputs.base }}
+        run: bash scripts/ci-app.sh "$BASE" HEAD

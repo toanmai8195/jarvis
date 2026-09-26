@@ -37,3 +37,21 @@ Việc ngoài phạm vi phát hiện trong lúc chạy execute-all, để báo c
 - Máy dev: `$(go env GOPATH)/bin` (`~/go/bin`) chưa có trong `PATH` của shell; người dùng nên thêm vào `~/.zshrc` (đã ghi trong `local-setup.md`).
 - Lệnh nguyên văn của vài TC đã duyệt có nhiễu không phải lỗi: TC02 `ls $CORE_DIR $AN_DIR | grep -v ...` in dòng tiêu đề thư mục của `ls` (tên file đều khớp); TC04 `grep -rn 'goose@latest' com/tm/docs` khớp chính dòng định nghĩa TC04 trong `tasks/P0-T03/test-cases.md`; TC16 `git status --porcelain com/tm/server/db` in `?? com/tm/server/db/` vì file của task chưa commit (không có file lạ, `-uall` chỉ ra 2 migration). Không sửa được vì là test case đã duyệt.
 - macOS không có `timeout` (coreutils) — test đo thời gian bằng `date +%s`.
+
+## P0-T04
+
+Cần kiểm khi đóng phase 0 (chạy thật trên GitHub qua nhánh `ci-check/*` + draft PR, P0-AT04/AT05/AT11 và DoD "CI xanh trên `main`"):
+- **Lockfile Bazel trên Linux**: `MODULE.bazel.lock` sinh trên darwin/arm64. Trên runner `ubuntu-24.04`, Bazel có thể thêm mục cho platform Linux. Workflow **không** đặt `--lockfile_mode=error`, nên lockfile bị cập nhật trong runner cũng không fail. Nếu log báo lockfile đổi, sinh lại trên Linux (hoặc `bazel mod deps --lockfile_mode=update` trên cả hai OS) và commit.
+- **Target image trên Linux**: push lên `main` có đổi file toàn cục, hoặc `before` = 0, sẽ chạy `bazel test //...`. Trên Linux, lệnh này build cả `*_image` (trên macOS thì SKIPPED), nên cần tải base distroless. Kiểm thời gian job và việc pull `gcr.io` từ runner.
+- **Toolchain CI** kiểm ở bước "Phiên bản toolchain": Go theo `go.mod` (1.27.1, setup-go v7 phải có bản này), Bazel 8.7.0 qua Bazelisk 1.29.0 (setup-bazel), golangci-lint 2.14.0, pnpm 11.18.0 (`packageManager`), Node theo `engines.node` `>=22`: setup-node lấy bản mới nhất thỏa điều kiện, **có thể lớn hơn 22**. Nếu muốn cố định thì thêm `.node-version`.
+- **Required checks**: sau khi CI xanh trên `main`, cân nhắc bật branch protection cho `main` với required check `changes`, `server (golangci-lint + bazel test)`, `app (pnpm lint/test/build)`. Job skipped do `if` được tính là đạt. Đây là cài đặt repo trên GitHub, cần người dùng quyết định.
+- **P0-AT05**: cần package TS có test thật (P0-T11/P0-T17), hoặc fixture tạm trên nhánh `ci-check/*`.
+- `pull_request` từ fork không có quyền ghi. Workflow chỉ cần `contents: read`, nên không ảnh hưởng.
+
+Ngoài phạm vi (ghi lại, không làm):
+- Dòng CI `com/tm/server/api/**`, `com/tm/app/api/**` → sinh lại code + `git diff --exit-code`: thêm khi có codegen (oapi-codegen / openapi-typescript, phase sau). Khi thêm thì cập nhật `scripts/ci-changes.sh` (cả hai job) và bảng CI trong `project-structure.md` (đang ghi "chưa có").
+- Dòng CI `com/tm/docs/**` → kiểm tra link markdown: chưa có job. Có thể thêm job `docs` với `lychee` hoặc `markdown-link-check`, pin SHA.
+- Gọi `scripts/check-structure*.sh`, `scripts/check-compose*.sh`, `scripts/ci-*_test.sh` trong CI (job `repo` luôn chạy, hoặc chạy khi `scripts/**` đổi): chưa làm, vì không có trong dòng task. `check-compose.sh` cần `docker compose` (runner ubuntu có sẵn).
+- Cache Bazel (disk/repository cache của setup-bazel) và cache pnpm store: chưa bật. Bật khi thời gian CI thành vấn đề.
+- `CLAUDE.md` bước 4 (App) vẫn ghi `pnpm --filter "...[origin/main]" lint test build`. Đề xuất sửa đã có ở P0-T01b, người dùng tự sửa.
+- Quy trình: agent triển khai có một lần sửa `com/tm/server/.golangci.yml` bằng python qua Bash (bỏ dòng `run.go` lặp) thay vì Edit — vi phạm quy tắc "không lách hook bằng Bash" (hook vẫn cho phép vì bước 1 đã `[x]`). Orchestrator đã đọc lại file và chạy lại golangci-lint/bazel test: nội dung đúng.

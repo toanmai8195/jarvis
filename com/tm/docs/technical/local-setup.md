@@ -15,6 +15,13 @@
     goose -version                              # goose version: v3.28.0
     ```
     Migration là file SQL đánh số tuần tự (`00001_init.sql`, tạo mới: `goose -s -dir <thư mục> create <tên> sql`), bảng version mặc định `public.goose_db_version`.
+  - `golangci-lint` pin **v2.14.0** (cùng bản CI dùng trong `.github/workflows/ci.yml`; cấu hình `com/tm/server/.golangci.yml`):
+    ```bash
+    brew install golangci-lint            # hoặc bản đúng pin:
+    curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v2.14.0
+    golangci-lint --version               # golangci-lint has version 2.14.0 ...
+    cd com/tm/server && golangci-lint run ./...
+    ```
 
 ## Các bước
 
@@ -85,7 +92,7 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 cd com/tm/server
 go test ./...                 # vòng dev nhanh
 bazel run //:gazelle          # sau khi thêm/xoá file Go hoặc import
-bazel test //...              # như CI (target image bị SKIP trên macOS, xem dưới)
+bazel test //...              # mọi target (CI chỉ test target bị ảnh hưởng, xem dưới; target image bị SKIP trên macOS)
 
 # Image OCI (macro com_tm_go_image: <name>, <name>_image, <name>_docker, <name>_push)
 bazel run --config=linux-arm64 //tools/smoke:smoke_docker     # Apple Silicon → nạp com.tm.go.smoke:v1.0.0 vào Docker
@@ -99,6 +106,13 @@ pnpm --filter bff test                                   # một app
 # Như CI: chỉ package thay đổi so với origin/main + package phụ thuộc vào chúng
 # (không dùng `pnpm ... lint test build` — pnpm chỉ chạy lint, xem project-structure.md mục CI)
 pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint|test|build)$/'
+
+# Chạy lại job CI cục bộ (cùng script mà .github/workflows/ci.yml gọi; từ gốc repo).
+# BASE = origin/main (như PR); cần `git fetch origin` để origin/main mới.
+bash scripts/ci-changes.sh origin/main HEAD   # server=true|false, app=true|false
+bash scripts/ci-affected.sh origin/main HEAD  # target Bazel test bị ảnh hưởng (//... = tất cả)
+bash scripts/ci-server.sh origin/main         # golangci-lint + bazel test target bị ảnh hưởng
+bash scripts/ci-app.sh origin/main            # pnpm install --frozen-lockfile + lint/test/build + chốt lockfile
 
 # Load test
 k6 run loadtest/booking-peak.js

@@ -31,6 +31,7 @@ handbook/
 | P0-T01b | `com/tm/app` pnpm workspace (`pnpm-workspace.yaml`, `package.json` gốc, script chạy theo filter) | [phase-0/P0-T01b.md](phase-0/P0-T01b.md) |
 | P0-T02 | `deploy/docker-compose.yml`: PG core/analytics, MongoDB, Redis, otel-collector, Prometheus, Tempo, Grafana | [phase-0/P0-T02.md](phase-0/P0-T02.md) |
 | P0-T03 | goose, `db/core/migrations`, `db/analytics/migrations`, migration rỗng đầu tiên | [phase-0/P0-T03.md](phase-0/P0-T03.md) |
+| P0-T04 | GitHub Actions theo đường dẫn thay đổi: golangci-lint + `bazel test` target bị ảnh hưởng, pnpm lint/test/build package bị ảnh hưởng | [phase-0/P0-T04.md](phase-0/P0-T04.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -58,6 +59,11 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `bash`, `testing`, `docker/compose` | P0-T02 | Script kiểm tĩnh compose: pin image + healthcheck không giả | [P0-T02.md](phase-0/P0-T02.md#script-kiểm-tĩnh-compose-pin-image--healthcheck-không-giả) |
 | `pg/migration`, `go/tooling` | P0-T03 | Pin goose bằng `go install ...@v3.28.0`, chạy trên host | [P0-T03.md](phase-0/P0-T03.md#pin-goose-bằng-go-install-v3280-chạy-trên-host) |
 | `pg/migration` | P0-T03 | Migration rỗng đầu tiên: SQL, đánh số tuần tự, annotation Up/Down | [P0-T03.md](phase-0/P0-T03.md#migration-rỗng-đầu-tiên-sql-đánh-số-tuần-tự-annotation-updown) |
+| `ci/github-actions` | P0-T04 | Một workflow: job `changes` + `if`, không lọc bằng `paths:` | [P0-T04.md](phase-0/P0-T04.md#một-workflow-job-changes--if-không-lọc-bằng-paths) |
+| `bazel`, `bazel/query`, `ci` | P0-T04 | Target Bazel bị ảnh hưởng bằng `bazel query rdeps` (G14) | [P0-T04.md](phase-0/P0-T04.md#target-bazel-bị-ảnh-hưởng-bằng-bazel-query-rdeps-g14) |
+| `node/pnpm`, `ci` | P0-T04 | Job app: install frozen, filter theo merge-base, chạy tất cả khi file gốc workspace đổi | [P0-T04.md](phase-0/P0-T04.md#job-app-install-frozen-filter-theo-merge-base-chạy-tất-cả-khi-file-gốc-workspace-đổi) |
+| `go/lint`, `ci` | P0-T04 | golangci-lint v2: pin bản, preset `standard`, không bật `std-error-handling` | [P0-T04.md](phase-0/P0-T04.md#golangci-lint-v2-pin-bản-preset-standard-không-bật-std-error-handling) |
+| `bash`, `testing`, `ci` | P0-T04 | Test script CI bằng binary giả qua biến môi trường | [P0-T04.md](phase-0/P0-T04.md#test-script-ci-bằng-binary-giả-qua-biến-môi-trường) |
 
 ## Mẫu một file
 
