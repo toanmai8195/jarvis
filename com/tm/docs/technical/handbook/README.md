@@ -28,6 +28,7 @@ handbook/
 |---|---|---|
 | P0-T01 | Khởi tạo cấu trúc `com/tm/{server,app,docs}`, `deploy/`, `loadtest/` | [phase-0/P0-T01.md](phase-0/P0-T01.md) |
 | P0-T01a | `com/tm/server` Bazel workspace (bzlmod, Gazelle, một `go.mod`, macro `com_tm_go_image`) | [phase-0/P0-T01a.md](phase-0/P0-T01a.md) |
+| P0-T01b | `com/tm/app` pnpm workspace (`pnpm-workspace.yaml`, `package.json` gốc, script chạy theo filter) | [phase-0/P0-T01b.md](phase-0/P0-T01b.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -42,6 +43,10 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `bazel/rules_oci`, `bazel/macro`, `docker` | P0-T01a | Macro `com_tm_go_image`: binary + layer + OCI image distroless | [P0-T01a.md](phase-0/P0-T01a.md#macro-com_tm_go_image-binary--layer--oci-image-distroless) |
 | `bazel/toolchain`, `bazel/platforms` | P0-T01a | Cross-build Linux trên macOS: `oci_load` dùng tar của platform đích | [P0-T01a.md](phase-0/P0-T01a.md#cross-build-linux-trên-macos-oci_load-dùng-tar-của-platform-đích) |
 | `go/testing` | P0-T01a | Binary mẫu tách `run(io.Writer)` khỏi `main` | [P0-T01a.md](phase-0/P0-T01a.md#binary-mẫu-tách-runiowriter-khỏi-main) |
+| `node/pnpm`, `node/tooling` | P0-T01b | Pin phiên bản pnpm bằng `packageManager`, không cần corepack | [P0-T01b.md](phase-0/P0-T01b.md#pin-phiên-bản-pnpm-bằng-packagemanager-không-cần-corepack) |
+| `node/pnpm` | P0-T01b | Script gốc `pnpm --recursive --if-present`, `dev` thêm `--parallel` | [P0-T01b.md](phase-0/P0-T01b.md#script-gốc-pnpm---recursive---if-present-dev-thêm---parallel) |
+| `node/pnpm`, `ci` | P0-T01b | `pnpm ... lint test build` chỉ chạy `lint`: dùng `run '/regex/'` | [P0-T01b.md](phase-0/P0-T01b.md#pnpm--lint-test-build-chỉ-chạy-lint-dùng-run-regex) |
+| `node/pnpm`, `ci` | P0-T01b | pnpm 11 tự cài lại deps trước khi chạy script | [P0-T01b.md](phase-0/P0-T01b.md#pnpm-11-tự-cài-lại-deps-trước-khi-chạy-script) |
 
 ## Mẫu một file
 

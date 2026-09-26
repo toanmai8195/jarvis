@@ -6,7 +6,7 @@
 
 - Docker + Docker Compose
 - Go 1.27.1+ (theo `go` trong `com/tm/server/go.mod`; Bazel tự tải đúng SDK này), Bazelisk (đọc phiên bản Bazel từ `.bazelversion`)
-- Node.js 22+ và pnpm
+- Node.js 22+ và pnpm (bất kỳ bản nào ≥ 9.7; trong `com/tm/app` pnpm tự chuyển sang bản pin ở `packageManager` = `pnpm@11.18.0` — kiểm bằng `pnpm -v`)
 - Công cụ: `goose`, `sqlc`
 
 ## Các bước
@@ -29,8 +29,9 @@ go run ./services/stats-worker/cmd/worker  # terminal khác
 
 # 4. App (Node + React)
 cd com/tm/app
-pnpm install
-pnpm dev   # chạy song song bff, web-client, web-admin
+pnpm install --frozen-lockfile   # cài đúng theo pnpm-lock.yaml (lockfile lệch → ERR_PNPM_OUTDATED_LOCKFILE)
+pnpm dev                         # chạy song song script dev của mọi app (bff, web-client, web-admin)
+pnpm --filter bff dev            # chỉ một app
 ```
 
 ## Biến môi trường
@@ -81,8 +82,11 @@ bazel build --config=linux-amd64 //tools/smoke:smoke_image    # server x86
 
 # App
 cd com/tm/app
-pnpm test
-pnpm build
+pnpm lint && pnpm typecheck && pnpm test && pnpm build   # mọi package, thứ tự topo; package thiếu script được bỏ qua
+pnpm --filter bff test                                   # một app
+# Như CI: chỉ package thay đổi so với origin/main + package phụ thuộc vào chúng
+# (không dùng `pnpm ... lint test build` — pnpm chỉ chạy lint, xem project-structure.md mục CI)
+pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint|test|build)$/'
 
 # Load test
 k6 run loadtest/booking-peak.js

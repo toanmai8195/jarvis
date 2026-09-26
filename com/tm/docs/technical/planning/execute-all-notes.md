@@ -14,3 +14,10 @@ Việc ngoài phạm vi phát hiện trong lúc chạy execute-all, để báo c
 - TC22: `grep -rn 'cmd/server:image' com/tm/docs/technical` chỉ còn khớp trong chính `tasks/P0-T01a/test-cases.md` (dòng định nghĩa TC22 và mục Review trích lại chuỗi) — không sửa được vì là test case đã duyệt; mọi docs khác đã sạch.
 - `go build ./...` ghi binary `com/tm/server/smoke` khi module chỉ có một package main → đã thêm `/com/tm/server/smoke` vào `.gitignore`.
 - `.github/workflows` và `Makefile` chưa có; khi P0-T04/P0-T05 thêm, nên gọi `bazel test //...` và `go test -race ./...` trong `com/tm/server`.
+
+## P0-T01b
+
+- **Đề xuất người dùng tự sửa** (TC14 đã chứng minh): lệnh `pnpm --filter "...[origin/main]" lint test build` ở `CLAUDE.md` (Bước 4 — App, và bảng thư mục dòng `com/tm/app`: `pnpm --filter <app> lint test build`) và dòng task **P0-T04** trong `planning/phase-0-foundation/README.md` chỉ chạy `lint` (pnpm coi `test build` là đối số của `lint`, exit 0 nên che lỗi). Lệnh đúng: `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint|test|build)$/'` (một app: `pnpm --filter <app> run '/^(lint|test|build)$/'`). `project-structure.md` và `local-setup.md` đã sửa trong P0-T01b.
+- P0-T04 (CI): chạy `pnpm install --frozen-lockfile` **trước** mọi script. pnpm 11 tự `install` (không frozen) trước khi `run` nếu `package.json` lệch deps, nên lockfile có thể bị viết lại âm thầm. Nên thêm `git diff --exit-code com/tm/app/pnpm-lock.yaml` sau bước chạy script.
+- P0-T04: `...[origin/main]` cần `fetch-depth: 0` (hoặc fetch `origin/main`) trong `actions/checkout`, nếu không pnpm không so được thay đổi. Filter không khớp package nào → exit 0 (không dùng `--fail-if-no-match`).
+- Khi chỉ `package.json` gốc / `pnpm-workspace.yaml` / lockfile đổi, `--filter '!snaptix-app'` làm CI không chạy package nào. P0-T04 cân nhắc chạy toàn bộ (`pnpm lint && pnpm test && pnpm build`) trong trường hợp này.

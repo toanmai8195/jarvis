@@ -149,7 +149,7 @@ router := httpx.NewRouter(catalog.Routes(catalogSvc), booking.Routes(bookingSvc)
 
 ```
 com/tm/app/
-├── package.json              # script gốc dev/build/test/lint/typecheck (pnpm --recursive --if-present)
+├── package.json              # tên snaptix-app; script gốc build/test/lint/typecheck (pnpm --recursive --if-present), dev thêm --parallel
 ├── pnpm-workspace.yaml
 ├── pnpm-lock.yaml
 ├── api/
@@ -168,6 +168,7 @@ com/tm/app/
 | Việc | Công cụ |
 |---|---|
 | Dependency | pnpm workspace (`apps/*`, `packages/*`), một lockfile; `packageManager: pnpm@11.18.0`, Node ≥ 22 |
+| Chạy script | Gốc: `pnpm build`/`test`/`lint`/`typecheck` (mọi package, thứ tự topo, bỏ qua package thiếu script), `pnpm dev` (song song); một app: `pnpm --filter <app> <script>`; app và mọi package nó phụ thuộc: `pnpm --filter "<app>..." <script>` |
 | Dev BFF | `tsx watch` |
 | Build BFF | `tsc --noEmit` (kiểm type) + `tsup` (esbuild) → `dist/` |
 | Build web | Vite |
@@ -232,9 +233,15 @@ Kiểm tra cái giá của việc dùng chung: `bazel query 'rdeps(//..., //pkg/
 | Thay đổi | Chạy |
 |---|---|
 | `com/tm/server/**` | `bazel test` các target bị ảnh hưởng |
-| `com/tm/app/**` | `pnpm --filter "...[origin/main]" lint test build` |
+| `com/tm/app/**` | `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint\|test\|build)$/'` (xem ghi chú dưới bảng) |
 | `com/tm/server/api/**`, `com/tm/app/api/**` | Cả hai + sinh lại code và `git diff --exit-code` |
 | `com/tm/docs/**` | Kiểm tra link markdown |
+
+Ghi chú lệnh pnpm (đã kiểm ở P0-T01b):
+- **Không** viết `pnpm --filter ... lint test build`: pnpm chỉ chạy script đầu tiên (`lint`) và coi `test build` là **đối số** của nó — lỗi bị che vì exit 0. Chạy nhiều script bằng regex: `run '/^(lint|test|build)$/'` (các script khớp chạy **đồng thời** trong cùng package, package vẫn theo thứ tự topo), hoặc gọi lần lượt từng lệnh nếu cần tuần tự.
+- `...[origin/main]`: package có file thay đổi so với `origin/main` **cộng mọi package phụ thuộc vào nó** (dependents). File chưa được git track không tính là thay đổi.
+- `--filter '!snaptix-app'`: loại package gốc (`com/tm/app/package.json`, tên `snaptix-app`) — khi `package.json` gốc đổi, root cũng bị chọn và script gốc sẽ tự chạy đệ quy lại cả workspace.
+- `--if-present`: không lỗi `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT` khi package được chọn không có script khớp. Filter không khớp package nào → in `No projects matched the filters`, exit 0; thêm `--fail-if-no-match` nếu muốn exit 1.
 
 ---
 
