@@ -79,7 +79,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `build: Makefile make up/migrate/test — scripts/migrate.sh tìm goose ngoài PATH và gom lỗi core/analytics, scripts/test-all.sh chạy scripts/server/app không che lỗi [P0-T05]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T06** Dashboard Grafana cơ bản: RED metrics cho mỗi service
+- [x] **P0-T06** Dashboard Grafana cơ bản: RED metrics cho mỗi service
+  - [x] 1. Test case: P0-T06-TC01..TC21 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `feat(deploy): dashboard Grafana RED theo service provisioning từ file, cài sẵn plugin prometheus/tempo khi build [P0-T06]` · Push: không (execute-all push khi đóng phase)
 
 ### core
 - [ ] **P0-T07** Skeleton `com/tm/server/services/core`: config (env), slog JSON, chi router, pgxpool, `/healthz`, `/readyz`, `/metrics`

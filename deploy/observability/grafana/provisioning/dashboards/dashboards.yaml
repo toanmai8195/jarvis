@@ -1,0 +1,18 @@
+# Provider dashboard Grafana (P0-T06). JSON dashboard nằm trong
+# deploy/observability/grafana/dashboards/, được Dockerfile COPY vào
+# /etc/grafana/dashboards (không bind mount: xem handbook P0-T02).
+# Sửa dashboard = sửa file JSON rồi `make up` (build lại image).
+apiVersion: 1
+
+providers:
+  - name: snaptix
+    orgId: 1
+    folder: snaptix
+    type: file
+    # Dashboard là code: không xoá, không lưu đè qua UI/API.
+    disableDeletion: true
+    allowUiUpdates: false
+    updateIntervalSeconds: 30
+    options:
+      path: /etc/grafana/dashboards
+      foldersFromFilesStructure: false

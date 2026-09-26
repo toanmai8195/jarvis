@@ -33,6 +33,7 @@ handbook/
 | P0-T03 | goose, `db/core/migrations`, `db/analytics/migrations`, migration rỗng đầu tiên | [phase-0/P0-T03.md](phase-0/P0-T03.md) |
 | P0-T04 | GitHub Actions theo đường dẫn thay đổi: golangci-lint + `bazel test` target bị ảnh hưởng, pnpm lint/test/build package bị ảnh hưởng | [phase-0/P0-T04.md](phase-0/P0-T04.md) |
 | P0-T05 | Makefile / script: `make up`, `make migrate`, `make test` | [phase-0/P0-T05.md](phase-0/P0-T05.md) |
+| P0-T06 | Dashboard Grafana cơ bản: RED metrics cho mỗi service | [phase-0/P0-T06.md](phase-0/P0-T06.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -68,6 +69,11 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `make`, `bash` | P0-T05 | Makefile mỏng cho GNU Make 3.81, logic nằm trong `scripts/` | [P0-T05.md](phase-0/P0-T05.md#makefile-mỏng-cho-gnu-make-381-logic-nằm-trong-scripts) |
 | `pg/migration`, `go/tooling`, `bash` | P0-T05 | `make migrate`: tìm goose ngoài PATH, không treo, không che lỗi DB sau | [P0-T05.md](phase-0/P0-T05.md#make-migrate-tìm-goose-ngoài-path-không-treo-không-che-lỗi-db-sau) |
 | `bash`, `testing`, `node/pnpm` | P0-T05 | `make test`: chạy mọi bộ, gom lỗi, không để bước cuối che bước đầu | [P0-T05.md](phase-0/P0-T05.md#make-test-chạy-mọi-bộ-gom-lỗi-không-để-bước-cuối-che-bước-đầu) |
+| `observability/grafana`, `docker` | P0-T06 | Provisioning dashboard từ file, bake vào image | [P0-T06.md](phase-0/P0-T06.md#provisioning-dashboard-từ-file-bake-vào-image) |
+| `observability/grafana` | P0-T06 | `disableDeletion` + `allowUiUpdates: false`: dashboard là code | [P0-T06.md](phase-0/P0-T06.md#disabledeletion--allowuiupdates-false-dashboard-là-code) |
+| `observability/prometheus`, `otel/semconv` | P0-T06 | Label service là `job` khi metric vào bằng OTLP push | [P0-T06.md](phase-0/P0-T06.md#label-service-là-job-khi-metric-vào-bằng-otlp-push) |
+| `observability/promql` | P0-T06 | Error rate: `(5xx or total * 0) / total` để service không lỗi ra 0 | [P0-T06.md](phase-0/P0-T06.md#error-rate-5xx-or-total--0--total-để-service-không-lỗi-ra-0) |
+| `observability/grafana`, `docker/healthcheck` | P0-T06 | Grafana 13 tải plugin datasource ngầm sau health: cài sẵn khi build | [P0-T06.md](phase-0/P0-T06.md#grafana-13-tải-plugin-datasource-ngầm-sau-health-cài-sẵn-khi-build) |
 
 ## Mẫu một file
 

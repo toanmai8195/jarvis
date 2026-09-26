@@ -93,6 +93,8 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 | Tempo | 3200 |
 | Grafana (đăng nhập ẩn danh, quyền Admin) | 3100 |
 
+Dashboard RED: <http://localhost:3100/d/snaptix-red> (Rate / Errors 5xx / Duration p50-p95-p99 theo service, chọn service bằng biến `service`). Dashboard là code: sửa `deploy/observability/grafana/dashboards/red.json` rồi `make up` (image grafana build lại). Lưu/xoá trên UI bị chặn (`allowUiUpdates: false`, `disableDeletion: true`). Kiểm tĩnh: `bash deploy/observability/grafana/check-dashboards.sh`.
+
 ## Build & kiểm thử
 
 ```bash

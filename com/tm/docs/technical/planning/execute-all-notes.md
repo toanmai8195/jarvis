@@ -64,3 +64,10 @@ Ngoài phạm vi (ghi lại, không làm):
 - TC14 chạy đúng thứ tự bảng thì lần `make -C $REPO migrate` sau TC12 in `OK 00001_init.sql` cho analytics (TC12 dừng analytics trước khi migrate, TC14 không `down -v`), không phải `no migrations to run`. Đã chạy lại TC14 khi cả hai DB đã migrate: in `no migrations to run` cho cả hai. Không phải lỗi của Makefile.
 - `CLAUDE.md` bước 4 (App) vẫn ghi `pnpm --filter "...[origin/main]" lint test build` (ghi chú P0-T01b). Bước 4 của task này chạy lệnh đúng `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint|test|build)$/'`.
 - `actionlint` chưa cài trên máy dev, bước 4 bỏ qua.
+
+## P0-T06
+
+- TC16/TC17 (UI) từng bị chặn vì Claude in Chrome chưa kết nối (`auto block`). Người dùng kết nối lại, TC01–TC21 đã chạy lại và pass trên stack mới (2026-09-26).
+- Grafana 13.2.2 tải plugin datasource `prometheus`/`tempo` ngầm (background installer, cần Internet) vài giây **sau** khi `/api/health` OK, nên ngay sau `up --wait` query trả 404 `plugin.notRegistered`. Dockerfile grafana đã cài sẵn `prometheus 13.2.1`, `tempo 13.2.2` lúc build. Khi nâng Grafana phải nâng hai bản pin này. Các plugin khác (zipkin, jaeger, mssql...) vẫn được tải ngầm lúc chạy — nếu muốn chạy offline hoàn toàn, cân nhắc `GF_PLUGINS_PREINSTALL_DISABLED=true` (đổi compose, ngoài phạm vi).
+- `deploy/observability/grafana/check-dashboards.sh` + `_test.sh` nằm trong thư mục grafana (TC20 chỉ cho đổi `deploy/observability/grafana/**`), nên `make test` (`scripts/test-all.sh`, chỉ quét `scripts/*_test.sh`) chưa gọi. Task sau nên thêm vào `suite_scripts` và CI.
+- Script kiểm tra không chứa chuỗi `__inputs`/`DS_PROMETHEUS` vì TC01 grep cả `deploy/observability/grafana`: check dạng export bằng "khoá cấp đầu bắt đầu bằng `__`" và placeholder `${DS_`.

@@ -92,6 +92,6 @@ Máy dev: Docker 8 GB RAM / 8 CPU, k6 chạy cùng máy. Cột "Nghiệm thu má
 - **Tracing**: OpenTelemetry, trace ID truyền từ BFF sang core qua header `traceparent`.
 - **Metrics**: Prometheus — RED metrics cho mỗi endpoint, số ghế đang hold, độ trễ outbox, pool connection PG.
 - **Logging**: JSON có cấu trúc, luôn kèm `trace_id`, `user_id`, `request_id`.
-- **Dashboard**: Grafana (datasource Prometheus + Tempo provision sẵn).
+- **Dashboard**: Grafana (datasource Prometheus + Tempo provision sẵn). Dashboard **RED theo service** (uid `snaptix-red`, thư mục `snaptix`) provisioning từ `deploy/observability/grafana/dashboards/red.json`: biến `service` = label `job` (`<service.namespace>/<service.name>`), Rate (theo service và theo `http_route`), Errors (tỉ lệ 5xx), Duration (p50/p95/p99) trên metric OTel `http.server.request.duration` (Prometheus: `http_server_request_duration_seconds_*`).
 - **Luồng local**: app → OTLP (4317/4318) → otel-collector → Tempo (trace) / Prometheus (metric) → Grafana. Cấu hình trong `deploy/observability/`.
   Metric vào Prometheus bằng OTLP push: collector đẩy tới `/api/v1/otlp` của Prometheus (cờ `--web.enable-otlp-receiver`), không qua exporter để scrape. Prometheus chỉ scrape chính nó, self-telemetry của collector (:8888) và `/metrics` của service (từ P0-T07).
