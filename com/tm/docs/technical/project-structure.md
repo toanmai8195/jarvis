@@ -34,8 +34,12 @@ com/tm/server/
 ├── BUILD.bazel               # target gazelle + directive, platform linux_amd64 / linux_arm64
 ├── .bazelrc                  # pure Go, CGO off, --config=linux-arm64|amd64, profile release
 ├── .bazelversion             # 8.7.0 (rules_oci chưa hỗ trợ Bazel 9)
-├── tools/rules/
-│   └── com_tm_container.bzl  # macro com_tm_go_image: binary + OCI image
+├── tools/
+│   ├── rules/
+│   │   ├── BUILD.bazel           # toolchain bsdtar cho `bazel run <name>_docker` khi cross-build
+│   │   ├── com_tm_container.bzl  # macro com_tm_go_image: binary + OCI image
+│   │   └── com_tm_container_test.bzl  # unit test (skylib) cho macro
+│   └── smoke/                # binary mẫu tối thiểu kiểm chứng workspace + image
 ├── go.mod, go.sum            # MỘT module cho toàn bộ Go
 ├── api/
 │   └── core.openapi.yaml     # hợp đồng API nội bộ của core
@@ -74,8 +78,8 @@ com/tm/server/
 | Sau khi thêm file | `bazel run //:gazelle` |
 | Code sinh ra (sqlc, oapi-codegen) | Commit vào repo |
 | Test cần Docker | `tags = ["requires-docker", "requires-network"]`, `size = "large"` |
-| Image | Macro `com_tm_go_image` (`tools/rules/com_tm_container.bzl`), gazelle `map_kind` cho mọi `go_binary`. Sinh `<name>`, `<name>_image`, `<name>_docker` (tag `com.tm.go.<name>:v1.0.0`), `<name>_push` khi có `repository`. Base distroless pin digest |
-| Build image | `bazel run --config=linux-arm64 //path:<name>_docker` (Apple Silicon) · `--config=linux-amd64` (server x86) |
+| Image | Macro `com_tm_go_image` (`tools/rules/com_tm_container.bzl`), gazelle `map_kind` cho mọi `go_binary`. Sinh `<name>`, `<name>_image`, `<name>_docker` (tag `com.tm.go.<name>:v1.0.0`), `<name>_push` khi có `repository`. Base distroless pin digest (`gcr.io/distroless/static-debian12:nonroot`, binary tại `/app/<name>`). Target image `target_compatible_with` Linux → `bazel build //...` trên macOS bỏ qua (SKIPPED) image, vẫn build binary/test |
+| Build image | `bazel run --config=linux-arm64 //path:<name>_docker` (Apple Silicon) · `--config=linux-amd64` (server x86). Ví dụ: `//tools/smoke:smoke_docker` → `com.tm.go.smoke:v1.0.0` |
 | IDE / gopls | Dùng `go.mod` trực tiếp, không cần `GOPACKAGESDRIVER`. Code phải build được bằng cả `go` lẫn Bazel |
 
 ### Module trong core (modular monolith)

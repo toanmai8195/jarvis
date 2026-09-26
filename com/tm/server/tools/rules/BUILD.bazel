@@ -1,0 +1,31 @@
+load(":com_tm_container_test.bzl", "com_tm_container_test_suite")
+
+exports_files(["com_tm_container.bzl"])
+
+com_tm_container_test_suite(name = "com_tm_container_test")
+
+# oci_load (`<name>_docker`) dùng toolchain `@tar.bzl//tar/toolchain:target_type`
+# cho script chạy lúc `bazel run`, và toolchain này được chọn theo platform ĐÍCH.
+# Với --config=linux-arm64 trên macOS, tar được chọn là binary Linux → script
+# `bazel run` không chạy được trên máy dev ("cannot execute binary file").
+# `bazel run` luôn chạy trên máy exec, nên với đích Linux ta dùng bsdtar của
+# platform exec. Đăng ký bằng register_toolchains("//tools/rules:all") trong
+# MODULE.bazel (root module được ưu tiên hơn toolchain của tar.bzl).
+[
+    toolchain(
+        name = "bsdtar_run_on_%s_%s" % (os, cpu),
+        exec_compatible_with = [
+            "@platforms//os:" + os,
+            "@platforms//cpu:" + cpu,
+        ],
+        target_compatible_with = ["@platforms//os:linux"],
+        toolchain = "@bsd_tar_toolchains_%s//:bsdtar_toolchain" % repo,
+        toolchain_type = "@tar.bzl//tar/toolchain:target_type",
+    )
+    for os, cpu, repo in [
+        ("osx", "aarch64", "darwin_arm64"),
+        ("osx", "x86_64", "darwin_amd64"),
+        ("linux", "aarch64", "linux_arm64"),
+        ("linux", "x86_64", "linux_amd64"),
+    ]
+]

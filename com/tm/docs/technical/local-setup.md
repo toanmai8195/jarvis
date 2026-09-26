@@ -5,7 +5,7 @@
 ## Yêu cầu
 
 - Docker + Docker Compose
-- Go 1.23+, Bazelisk (đọc phiên bản Bazel từ `.bazelversion`)
+- Go 1.27.1+ (theo `go` trong `com/tm/server/go.mod`; Bazel tự tải đúng SDK này), Bazelisk (đọc phiên bản Bazel từ `.bazelversion`)
 - Node.js 22+ và pnpm
 - Công cụ: `goose`, `sqlc`
 
@@ -72,8 +72,12 @@ Sao chép `.env.example` thành `.env` ở mỗi app/service.
 cd com/tm/server
 go test ./...                 # vòng dev nhanh
 bazel run //:gazelle          # sau khi thêm/xoá file Go hoặc import
-bazel test //...              # như CI
-bazel build //services/core/cmd/server:image   # image OCI
+bazel test //...              # như CI (target image bị SKIP trên macOS, xem dưới)
+
+# Image OCI (macro com_tm_go_image: <name>, <name>_image, <name>_docker, <name>_push)
+bazel run --config=linux-arm64 //tools/smoke:smoke_docker     # Apple Silicon → nạp com.tm.go.smoke:v1.0.0 vào Docker
+docker run --rm com.tm.go.smoke:v1.0.0                        # in "snaptix smoke ok"
+bazel build --config=linux-amd64 //tools/smoke:smoke_image    # server x86
 
 # App
 cd com/tm/app

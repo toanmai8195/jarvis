@@ -1,0 +1,23 @@
+# snaptix — cấu hình Bazel cho com/tm/server (Bazel 8, bzlmod).
+
+common --enable_bzlmod
+
+# Pure Go: CGO off cho mọi binary → binary tĩnh, chạy được trên distroless/static.
+build --@rules_go//go/config:pure
+build --action_env=CGO_ENABLED=0
+
+# Test: in log của test fail ra màn hình.
+test --test_output=errors
+
+# Cross-build image (binary + OCI image) cho Linux.
+#   Apple Silicon: bazel run --config=linux-arm64 //path:<name>_docker
+#   Server x86:    bazel build --config=linux-amd64 //path:<name>_image
+build:linux-arm64 --platforms=//:linux_arm64
+build:linux-amd64 --platforms=//:linux_amd64
+
+# Profile release: tối ưu, bỏ debug symbol.
+build:release --compilation_mode=opt
+build:release --strip=always
+
+# Cấu hình cá nhân (không commit, đã .gitignore).
+try-import %workspace%/.bazelrc.user

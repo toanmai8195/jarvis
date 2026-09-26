@@ -15,5 +15,5 @@
 | P0-AT09 | Integration | Gửi SIGTERM rồi gửi request mới | Request mới bị từ chối (connection refused / 503) | P0-NFR3, G3 | ⬜ |
 | P0-AT10 | Integration | Handler chạy quá shutdown timeout | Service vẫn thoát sau timeout, log cảnh báo | G3 | ⬜ |
 | P0-AT11 | CI | PR chỉ sửa `com/tm/app/**` | Không chạy job Bazel | G14 | ⬜ |
-| P0-AT12 | Manual | Thêm package Go mới, chạy `bazel run //:gazelle` | BUILD.bazel sinh đúng; `go build ./...` và `bazel build //...` đều pass | G14 | ⬜ |
+| P0-AT12 | Manual | Thêm package Go mới, chạy `bazel run //:gazelle` | BUILD.bazel sinh đúng; `go build ./...` và `bazel build //...` đều pass | G14 | ✅ |
 | P0-AT13 | Integration | Package ở `services/stats-worker` import `services/core/internal/...` | Build fail (visibility / `internal`) | G14 | ⬜ |

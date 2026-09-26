@@ -156,6 +156,9 @@ cover.html
 .bazelrc.user
 # Go build output
 /com/tm/server/bin/
+# `go build ./...` ghi binary ra cwd khi pattern chỉ khớp đúng một package main
+# (hiện chỉ có tools/smoke) — không commit.
+/com/tm/server/smoke
 
 # ---------------------------------------------------------------------------
 # snaptix — local / editor / OS

@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("//tools/rules:com_tm_container.bzl", "com_tm_go_image")
+
+go_library(
+    name = "smoke_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/toanmai8195/snaptix/com/tm/server/tools/smoke",
+    visibility = ["//visibility:private"],
+)
+
+com_tm_go_image(
+    name = "smoke",
+    embed = [":smoke_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "smoke_test",
+    srcs = ["smoke_test.go"],
+    embed = [":smoke_lib"],
+)
