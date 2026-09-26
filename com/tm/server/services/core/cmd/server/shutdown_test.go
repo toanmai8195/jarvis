@@ -185,7 +185,7 @@ func startRun(t *testing.T, handler http.Handler, timeout time.Duration, pool *f
 	ctx, cancel := context.WithCancel(context.Background())
 	h.cancel = cancel
 	t.Cleanup(cancel)
-	go func() { h.errc <- run(ctx, log, srv, pool, "127.0.0.1:0", timeout, sigs) }()
+	go func() { h.errc <- run(ctx, log, srv, pool, noFlush, "127.0.0.1:0", timeout, sigs) }()
 	select {
 	case h.addr = <-srv.addr:
 	case err := <-h.errc:
@@ -553,7 +553,7 @@ func TestRunListenError(t *testing.T) {
 	start := time.Now()
 	errc := make(chan error, 1)
 	go func() {
-		errc <- run(context.Background(), slog.New(slog.NewJSONHandler(logs, nil)), srv, pool,
+		errc <- run(context.Background(), slog.New(slog.NewJSONHandler(logs, nil)), srv, pool, noFlush,
 			busy.Addr().String(), 10*time.Second, make(chan os.Signal))
 	}()
 	select {

@@ -54,6 +54,8 @@ go run ./services/core/cmd/server                   # hoặc: bazel run //servic
 #    core nghe :8080 — curl localhost:8080/healthz (sống), /readyz (ping được PG core), /metrics (Prometheus).
 #    Core khởi động được cả khi PG chưa lên (pool lười): /readyz trả 503 tới khi PG sẵn sàng.
 #    Prometheus (job `core`) scrape host.docker.internal:8080/metrics — xem http://localhost:9090/targets.
+#    Trace + metric RED gửi OTLP/HTTP tới otel-collector localhost:4318 (biến OTEL_*, bảng dưới) —
+#    xem trace trong Grafana Explore (datasource tempo), dashboard RED với service = snaptix/core.
 go run ./services/core/cmd/worker          # terminal khác
 go run ./services/stats-worker/cmd/worker  # terminal khác
 
@@ -76,6 +78,12 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 | `CORE_HTTP_ADDR` | core (mặc định `:8080`, dạng `host:port`) | `:8080` |
 | `CORE_LOG_LEVEL` | core (mặc định `info`; `debug` \| `info` \| `warn` \| `error`) | `info` |
 | `CORE_SHUTDOWN_TIMEOUT` | core (mặc định `10s`; định dạng Go duration `time.ParseDuration`, vd `10s`, `1500ms`; `0`/âm/thiếu đơn vị → lỗi cấu hình). Hạn chờ request đang chạy khi nhận SIGTERM/SIGINT, hết hạn thì đóng cưỡng bức, exit `1` | `10s` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | core (`pkg/otelx`, OTLP/HTTP; mặc định `http://localhost:4318`; phải là URL `http://`/`https://` có host, sai → core thoát với log ERROR; collector không tới được → core vẫn chạy, log WARN). Không hỗ trợ `OTEL_EXPORTER_OTLP_PROTOCOL` (luôn HTTP/protobuf) | `http://localhost:4318` |
+| `OTEL_SERVICE_NAME` | core (mặc định `core`; thắng `service.name` trong `OTEL_RESOURCE_ATTRIBUTES`) | `core` |
+| `OTEL_RESOURCE_ATTRIBUTES` | core (mặc định rỗng; `key=value,...` thêm/đè thuộc tính resource, vd `service.namespace` — mặc định `snaptix`) | `deployment.environment.name=local` |
+| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | core (mặc định `parentbased_always_on`) | `parentbased_traceidratio`, `0.1` |
+| `OTEL_SDK_DISABLED` | core (mặc định `false`; `true` → không export trace/metric, log vẫn có `trace_id` khi request có `traceparent`) | `false` |
+| `OTEL_BSP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`, `OTEL_EXPORTER_OTLP_TIMEOUT` | core (mặc định `5000`, `60000`, `10000` ms: chu kỳ gửi span, chu kỳ gửi metric, hạn mỗi lần export) | `500`, `2000`, `1000` |
 | `ANALYTICS_DATABASE_URL` | stats-worker, bff | `postgres://snaptix:snaptix@localhost:5433/analytics` |
 | `REDIS_URL` | core, bff | `redis://localhost:6379` |
 | `MONGODB_URI` | bff | `mongodb://localhost:27017/snaptix` |

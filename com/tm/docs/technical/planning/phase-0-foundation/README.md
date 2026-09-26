@@ -109,7 +109,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `feat(core): graceful shutdown — SIGTERM/SIGINT, http.Server.Shutdown có hạn CORE_SHUTDOWN_TIMEOUT, đóng pool PG sau cùng có hạn, log shutdown_step, exit 0/1 [P0-T09]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T10** Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP `[G10]`
+- [x] **P0-T10** Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP `[G10]`
+  - [x] 1. Test case: P0-T10-TC01..TC22 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `feat(otelx): pkg/otelx — OTel SDK trace+metric export OTLP/HTTP, propagator TraceContext+Baggage, OTEL_SDK_DISABLED, validate endpoint; core: span PG qua otelpgx, flush telemetry song song đóng pool [P0-T10]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T10a** Image OCI cho core: dùng macro `com_tm_go_image` (có từ P0-T01a) cho `cmd/server`, `cmd/worker` `[G14]`
 
 ### bff

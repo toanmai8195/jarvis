@@ -37,6 +37,7 @@ handbook/
 | P0-T07 | Skeleton `services/core`: config env, slog JSON, chi, pgxpool, `/healthz`, `/readyz`, `/metrics` | [phase-0/P0-T07.md](phase-0/P0-T07.md) |
 | P0-T08 | Middleware: request ID, recover, access log, OTel HTTP | [phase-0/P0-T08.md](phase-0/P0-T08.md) |
 | P0-T09 | Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng | [phase-0/P0-T09.md](phase-0/P0-T09.md) |
+| P0-T10 | Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP | [phase-0/P0-T10.md](phase-0/P0-T10.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -95,6 +96,10 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `pg/pool`, `go/pgx`, `go/channel` | P0-T09 | `pgxpool.Pool.Close()` có thể treo ~15 s: đóng trong goroutine, chờ có hạn | [P0-T09.md](phase-0/P0-T09.md#pgxpoolpoolclose-có-thể-treo-15-s-đóng-trong-goroutine-chờ-có-hạn) |
 | `go/http`, `go/net` | P0-T09 | `net/http` đóng kết nối có request đọc xong khi đang shutdown, không trả response | [P0-T09.md](phase-0/P0-T09.md#nethttp-đóng-kết-nối-có-request-đọc-xong-khi-đang-shutdown-không-trả-response) |
 | `go/http`, `ops/deploy`, `net/tcp` | P0-T09 | Listener đóng ngay: kết nối mới bị từ chối, backlog bị reset — lý do G3 cần drain + load balancer | [P0-T09.md](phase-0/P0-T09.md#listener-đóng-ngay-kết-nối-mới-bị-từ-chối-backlog-bị-reset--lý-do-g3-cần-drain--load-balancer) |
+| `otel/sdk`, `otel/trace`, `otel/metric`, `go/package-layout` | P0-T10 | `pkg/otelx`: một hàm `Setup` trả `ShutdownFunc`, cấu hình chỉ bằng env `OTEL_*` | [P0-T10.md](phase-0/P0-T10.md#pkgotelx-một-hàm-setup-trả-shutdownfunc-cấu-hình-chỉ-bằng-env-otel_) |
+| `otel/sdk`, `go/slog`, `observability/logging`, `go/testing` | P0-T10 | Lỗi export thành log slog WARN, không in text ra stderr | [P0-T10.md](phase-0/P0-T10.md#lỗi-export-thành-log-slog-warn-không-in-text-ra-stderr) |
+| `go/context`, `go/channel`, `otel/sdk`, `go/signal` | P0-T10 | Flush telemetry song song với đóng pool, cùng hạn, log bằng key riêng | [P0-T10.md](phase-0/P0-T10.md#flush-telemetry-song-song-với-đóng-pool-cùng-hạn-log-bằng-key-riêng) |
+| `go/pgx`, `pg/pool`, `otel/trace` | P0-T10 | Span PG bằng `otelpgx`: cần `AcquireTracer` + `ConnectTracer`, không chỉ `QueryTracer` | [P0-T10.md](phase-0/P0-T10.md#span-pg-bằng-otelpgx-cần-acquiretracer--connecttracer-không-chỉ-querytracer) |
 
 ## Mẫu một file
 

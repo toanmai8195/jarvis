@@ -96,3 +96,11 @@ Ngoài phạm vi (ghi lại, không làm):
 - **P0-T10a / phase triển khai**: `stop_grace_period`/`terminationGracePeriodSeconds` của container core phải > `CORE_SHUTDOWN_TIMEOUT` (mặc định 10s) + 1s (đóng pool). Ghi ở `.env.example`, `architecture.md`, handbook.
 - **Tín hiệu thứ hai** thoát ngay mà không đóng pool: pool bị bỏ, PG tự dọn kết nối khi socket đóng. Chấp nhận theo A8.
 - Graceful shutdown của BFF (P0-T11) nên theo cùng quy ước log `shutdown_step` và exit code để dashboard/ops đọc thống nhất.
+
+## P0-T10
+
+- **P0-AT07 / G10 (phần BFF) thuộc P0-T12**: `/healthz` của core hiện **không** chạm PG, chỉ `/readyz` có span PG (`pool.acquire` → `connect`, qua `otelpgx`). Để `bff /healthz?deep=1` → core → PG thành một trace, P0-T12 phải chọn route core được gọi (vd gọi `/readyz`, hoặc thêm tham số `?deep=1` cho `/healthz` của core — task đó quyết định). P0-T10 không thêm route, không thêm `?deep=1`. G10 giữ 🟨.
+- `otelpgx` v0.12.0 còn tạo metric `db.client.operation.duration` và `db.client.operation.errors` (pgx) trên MeterProvider global: có trên Prometheus với `job="snaptix/core"`. Chưa có panel dashboard cho các metric này (ngoài phạm vi).
+- `OTEL_EXPORTER_OTLP_PROTOCOL` không được hỗ trợ (luôn OTLP/HTTP protobuf). `otlptracehttp` v1.46.0 vẫn kéo `google.golang.org/grpc` vào module graph qua `internal/otlpconfig` (không dùng lúc chạy).
+- P0-T10a (image OCI): container core cần `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` (mạng compose), không dùng mặc định `localhost:4318`.
+- stats-worker (task sau) dùng lại `otelx.Setup` với `ServiceName: "stats-worker"`.
