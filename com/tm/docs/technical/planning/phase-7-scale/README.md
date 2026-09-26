@@ -2,9 +2,9 @@
 
 ## Mục tiêu
 
-Đạt toàn bộ chỉ tiêu phi chức năng trong [architecture](../../architecture.md#yêu-cầu-phi-chức-năng) bằng đo đạc có hệ thống: profile, tuning PG, connection pooling, read replica, cache, rate limit, hàng đợi ảo — và chứng minh hệ thống vẫn đúng khi thành phần phụ trợ hỏng.
+Đạt chỉ tiêu phi chức năng **mức máy dev** (cột "Nghiệm thu máy dev" trong [architecture](../../architecture.md#yêu-cầu-phi-chức-năng)) bằng đo đạc có hệ thống: profile, tuning PG, connection pooling, read replica, cache, rate limit, hàng đợi ảo — và chứng minh hệ thống vẫn đúng khi thành phần phụ trợ hỏng.
 
-**Mốc demo**: kịch bản k6 "mở bán Tết" (traffic gấp 10 lần bình thường) chạy 30 phút: đạt chỉ tiêu, 0 vé trùng, 0 sai tiền; tắt Redis giữa chừng hệ thống vẫn đúng.
+**Mốc demo**: kịch bản k6 "mở bán Tết" (traffic gấp 10 lần bình thường) chạy 10 phút: đạt chỉ tiêu, 0 vé trùng, 0 sai tiền; tắt Redis giữa chừng hệ thống vẫn đúng.
 
 ## Phạm vi
 
@@ -17,12 +17,14 @@
 
 ## Requirement
 
+> Chỉ tiêu đã hạ cho vừa máy dev (Docker 8 GB RAM / 8 CPU, k6 chạy cùng máy) — quyết định 2026-09-26. Mục tiêu production (5.000 req/s, 1.000 booking/s, 24h) giữ trong [architecture](../../architecture.md#yêu-cầu-phi-chức-năng), không phải điều kiện đóng phase.
+
 | ID | Loại | Mô tả |
 |---|---|---|
-| P7-NFR1 | NFR | Tìm chuyến ≥ 5.000 req/s, p99 < 150ms |
-| P7-NFR2 | NFR | Đặt vé ≥ 1.000 booking/s, p99 < 300ms |
-| P7-NFR3 | NFR | Scale core lên 10 instance không lỗi connection |
-| P7-NFR4 | NFR | Chạy tải 24h: bộ nhớ Go/Node ổn định, bloat PG ổn định |
+| P7-NFR1 | NFR | Tìm chuyến qua BFF ≥ 2.000 req/s, p99 < 150ms |
+| P7-NFR2 | NFR | Đặt vé qua BFF + load balancer ≥ 500 booking/s, p99 < 300ms |
+| P7-NFR3 | NFR | Scale core lên 4 instance (+ 2 worker) không lỗi connection |
+| P7-NFR4 | NFR | Soak 1h ở 50% tải NFR1/NFR2: bộ nhớ Go/Node ổn định, bloat PG ổn định |
 | P7-NFR5 | NFR | Traffic gấp 10 lần → hàng đợi ảo giữ p99 của người đã vào trong ngưỡng |
 | P7-NFR6 | NFR | Redis chết → hệ thống chậm hơn nhưng 0 vé trùng, 0 sai tiền |
 | P7-FR1 | FR | Rate limit theo bảng trong [api](../../api.md#rate-limit-bff), đồng nhất giữa các instance BFF |
@@ -30,7 +32,7 @@
 ## Task
 
 ### qa
-- [ ] **P7-T01** Bộ kịch bản k6: search, booking thường, mở bán Tết, soak 24h; dashboard Grafana cho k6
+- [ ] **P7-T01** Bộ kịch bản k6: search, booking thường, mở bán Tết, soak 1h; dashboard Grafana cho k6
 - [ ] **P7-T02** Đo baseline, lưu `loadtest/results/phase-7/baseline`
 
 ### core
@@ -61,13 +63,13 @@
 | # | Công nghệ | Challenge | Bối cảnh | Hướng giải | Hoàn thành khi | Trạng thái |
 |---|---|---|---|---|---|---|
 | G8 | Golang | Tìm nút thắt hiệu năng | Latency tăng khi tải cao | pprof (CPU, heap, mutex, block), trace, benchmark | Có báo cáo profile trước/sau tối ưu trong ADR | ⬜ |
-| P9 | PostgreSQL core | Connection là tài nguyên khan hiếm | Nhiều instance core + worker | pgxpool + PgBouncer transaction mode, tính số connection tối ưu | Không lỗi `too many connections` khi scale 10 instance | ⬜ |
+| P9 | PostgreSQL core | Connection là tài nguyên khan hiếm | Nhiều instance core + worker | pgxpool + PgBouncer transaction mode, tính số connection tối ưu | Không lỗi `too many connections` khi scale 4 instance | ⬜ |
 | P11 | PostgreSQL core | Mở rộng đọc | Tìm chuyến, lịch sử | Streaming replication, read replica, xử lý replication lag | Đọc từ replica, đọc-sau-ghi vẫn đúng | ⬜ |
-| P12 | PostgreSQL core | Vacuum & bloat | `trip_seats`, `seat_holds` update liên tục | Tuning autovacuum theo bảng, fillfactor, theo dõi dead tuples | Bloat ổn định sau 24h load test | ⬜ |
+| P12 | PostgreSQL core | Vacuum & bloat | `trip_seats`, `seat_holds` update liên tục | Tuning autovacuum theo bảng, fillfactor, theo dõi dead tuples | Bloat ổn định sau soak 1h | ⬜ |
 | N1 | Node.js | Không chặn event loop | Gom dữ liệu, format JSON lớn | Tránh CPU-bound trên main thread, đo event loop lag, worker_threads khi cần | Event loop lag p99 < 50ms dưới tải | ⬜ |
 | N5 | Node.js | Rate limiting phân tán | Nhiều instance BFF | Sliding window trên Redis | Vượt ngưỡng → 429 đồng nhất giữa các instance | ⬜ |
 | N7 | Node.js | Cache đọc | Tìm chuyến, chi tiết chuyến | Cache ngắn + stale-while-revalidate, chống cache stampede | Giảm ≥ 70% request tìm chuyến tới core | ⬜ |
-| N9 | Node.js | Memory leak | Process chạy lâu | Heap snapshot, `--inspect`, theo dõi RSS | RSS ổn định sau 24h | ⬜ |
+| N9 | Node.js | Memory leak | Process chạy lâu | Heap snapshot, `--inspect`, theo dõi RSS | RSS ổn định sau soak 1h | ⬜ |
 | D1 | Redis | Giảm tải PG khi mở bán | Pre-check ghế trống | Bitmap/hash trạng thái ghế, đồng bộ với PG | PG nhận ít request tranh chấp hơn, dữ liệu không lệch | ⬜ |
 | D2 | Redis | Hàng đợi ảo | Sự kiện mở bán lớn | Sorted set cấp token theo tốc độ | Hệ thống giữ p99 ổn định khi traffic gấp 10 lần | ⬜ |
 | D3 | Redis | Redis không phải nguồn sự thật | Redis mất dữ liệu | Thiết kế để Redis chết → hệ thống chậm hơn nhưng vẫn đúng | Tắt Redis giữa load test: 0 vé trùng, 0 sai tiền | ⬜ |

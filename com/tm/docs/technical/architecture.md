@@ -73,16 +73,19 @@ flowchart LR
 
 ## Yêu cầu phi chức năng
 
-| Chỉ số | Mục tiêu |
-|---|---|
-| Thông lượng tìm chuyến | ≥ 5.000 req/s |
-| Thông lượng đặt vé (cao điểm) | ≥ 1.000 booking/s |
-| Latency p99 đặt vé | < 300 ms |
-| Latency p99 tìm chuyến | < 150 ms |
-| Bán trùng ghế | **0** |
-| Sai lệch tiền | **0 đồng** |
-| Độ trễ dữ liệu thống kê | < 5 phút |
-| Availability | 99,9% |
+| Chỉ số | Mục tiêu production | Nghiệm thu máy dev (phase 7) |
+|---|---|---|
+| Thông lượng tìm chuyến | ≥ 5.000 req/s | ≥ 2.000 req/s |
+| Thông lượng đặt vé (cao điểm) | ≥ 1.000 booking/s | ≥ 500 booking/s |
+| Latency p99 đặt vé | < 300 ms | < 300 ms |
+| Latency p99 tìm chuyến | < 150 ms | < 150 ms |
+| Chạy dài (bộ nhớ, bloat ổn định) | 24h | 1h |
+| Bán trùng ghế | **0** | **0** |
+| Sai lệch tiền | **0 đồng** | **0 đồng** |
+| Độ trễ dữ liệu thống kê | < 5 phút | < 5 phút |
+| Availability | 99,9% | — |
+
+Máy dev: Docker 8 GB RAM / 8 CPU, k6 chạy cùng máy. Cột "Nghiệm thu máy dev" là điều kiện đóng phase 7; cột production là mục tiêu thiết kế.
 
 ## Observability
 

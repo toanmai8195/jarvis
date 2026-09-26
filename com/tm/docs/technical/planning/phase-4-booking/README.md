@@ -65,7 +65,7 @@ Luồng cốt lõi: giữ ghế có thời hạn, đặt vé thanh toán bằng 
 
 | # | Công nghệ | Challenge | Bối cảnh | Hướng giải | Hoàn thành khi | Trạng thái |
 |---|---|---|---|---|---|---|
-| G1 | Golang | Xử lý hàng nghìn request đặt vé đồng thời | Mở bán Tết | Goroutine per request, giới hạn concurrency bằng semaphore, pgxpool đúng kích thước | k6 1.000 booking/s, p99 < 300ms, không leak goroutine | ⬜ |
+| G1 | Golang | Xử lý hàng nghìn request đặt vé đồng thời | Mở bán Tết | Goroutine per request, giới hạn concurrency bằng semaphore, pgxpool đúng kích thước | k6 500 booking/s, p99 < 300ms, không leak goroutine | ⬜ |
 | G4 | Golang | Worker chạy nhiều instance an toàn | Hết hạn hold, relay outbox, sinh slot | `FOR UPDATE SKIP LOCKED`, `errgroup`, backoff, leader election (advisory lock) cho job cần duy nhất | 3 instance worker, không xử lý trùng, không bỏ sót | ⬜ |
 | P1 | PostgreSQL core | Không bán trùng ghế | `trip_seats` là bảng nóng nhất | Update có điều kiện, khoá theo thứ tự, unique index chốt chặn | Load test tranh ghế: 0 vé trùng | ⬜ |
 | P2 | PostgreSQL core | Chọn chiến lược khoá | Nhiều cách cùng đúng, khác hiệu năng | So sánh `FOR UPDATE`, `SKIP LOCKED`, optimistic version, advisory lock | ADR có số liệu throughput/latency từng cách | ⬜ |

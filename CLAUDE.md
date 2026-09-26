@@ -109,7 +109,9 @@ Fail → sửa code (không sửa/skip test cho pass) → chạy lại đến kh
 Người dùng đã cho phép (2026-09-26) chạy tự động toàn bộ task đến hết phase 8 bằng skill `execute-all`. Chỉ áp dụng khi `python3 .claude/scripts/planning.py auto status` là `running`; ngoài chế độ này quy trình trên giữ nguyên. Ngoại lệ duy nhất:
 
 - **Bước 1**: test case do một agent riêng sinh ra, rồi một agent **khác, độc lập** review; review ghi `APPROVED` trong mục `## Review` của `test-cases.md` thay cho người dùng duyệt. Ghi `(review agent, execute-all)` vào dòng bước 1.
-- **Bước 6**: tự commit mỗi task (không hỏi), `Push: không`. Chỉ push ngay sau commit đóng phase `docs(planning): đóng phase N [phase-N]`; không force push, không `--no-verify`, không amend.
+- **Bước 6**: tự commit mỗi task (không hỏi), `Push: không`. Chỉ push: ngay sau commit đóng phase `docs(planning): đóng phase N [phase-N]`; trong lúc đóng phase để kiểm chứng CI trên `main`; nhánh `ci-check/*` cho test nghiệm thu CI (xoá sau khi xong). Không force push, không `--no-verify`, không amend.
+- **Chỉ tiêu tải**: phase 7 nghiệm thu theo cột "Nghiệm thu máy dev" trong `architecture.md` (quyết định 2026-09-26), không theo mục tiêu production.
+- **Chạy lại sau khi bị ngắt** (hết token, session chết): `.claude/scripts/execute-all-watchdog.sh start` chạy claude + watchdog trong tmux session `snaptix`; watchdog gõ "tiếp tục execute-all" vào tmux session `snaptix`; skill luôn `auto start` rồi làm tiếp từ trạng thái planning + git.
 - **Đóng phase**: agent tự chạy test nghiệm thu, DoD, checklist đóng phase — trừ `lessons-learned.md` (người dùng tự viết sau). Test nghiệm thu không thể chạy tự động → ⚠️ kèm lý do ở mục `## Miễn trừ` cuối `acceptance-tests.md`.
 - **Việc ngoài phạm vi**: không hỏi giữa chừng, ghi vào `planning/execute-all-notes.md` để báo cáo cuối.
 

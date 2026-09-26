@@ -509,6 +509,22 @@ def set_phase_status(n, emoji):
 GUARDED = ("com/tm/server/", "com/tm/app/")
 
 
+def closing_phase(phases, tasks, idx):
+    """Số phase đang đóng: task idx là task đầu của phase mới, mọi task phase trước đã xong + commit
+    nhưng phase trước chưa ✅. None nếu không ở giai đoạn đóng phase."""
+    if idx == 0 or idx > len(tasks):
+        return None
+    prev = tasks[idx - 1]
+    if idx < len(tasks) and tasks[idx]["phase"] == prev["phase"]:
+        return None
+    pp = next(p for p in phases if p["n"] == prev["phase"])
+    if pp["status"] in DONE:
+        return None
+    if all(t["done"] and committed(t) and commits_for(t["id"]) for t in pp["tasks"]):
+        return pp["n"]
+    return None
+
+
 def cmd_guard():
     """PreToolUse hook: chặn sửa code khi bước 0 chưa đạt hoặc test case chưa được duyệt.
 
@@ -533,6 +549,12 @@ def cmd_guard():
     phases, tasks = load_all()
     idx = current_index(tasks)
     if idx >= len(tasks):
+        sys.exit(0)
+    # Đang đóng phase (mọi task của phase đã commit, phase chưa ✅) hoặc verify cuối execute-all:
+    # được sửa code để chạy/sửa test nghiệm thu dù task kế tiếp chưa bắt đầu.
+    if closing_phase(phases, tasks, idx) is not None:
+        sys.exit(0)
+    if auto_running() and auto_next(load_state())["action"] == "FINAL_VERIFY":
         sys.exit(0)
     cur = tasks[idx]
     fails = [text for ok, text in validate(phases, tasks, idx) if not ok and not text.startswith("Working tree")]
@@ -617,6 +639,13 @@ def auto_next(state):
     scope = [t for t in tasks if t["phase"] <= until]
     idx = current_index(scope)
     cur_phase = scope[idx]["phase"] if idx < len(scope) else until + 1
+    # Phục hồi khi bị ngắt giữa `auto close` và commit đóng phase, hoặc giữa tick bước 6 và `git commit`.
+    for p in phases:
+        if p["n"] <= until and p["status"] in DONE and not git("log", "-n", "1", "--fixed-strings", f"--grep=[phase-{p['n']}]"):
+            return {"action": "COMMIT_CLOSE", "phase": p["n"]}
+    for t in scope:
+        if committed(t) and not commits_for(t["id"]):
+            return {"task": t["id"], "phase": t["phase"], "desc": t["desc"], "action": "COMMIT", "step": 6, "resume": True}
     for p in phases:
         if p["n"] < cur_phase and p["n"] <= until and p["status"] not in DONE:
             return {"action": "CLOSE_PHASE", "phase": p["n"], "problems": close_problems(phases, p["n"])}
@@ -649,7 +678,7 @@ def cmd_auto(argv):
     """Chế độ execute-all:
 
     auto start [UNTIL_PHASE]   bắt đầu / chạy tiếp (mặc định đến phase 8)
-    auto next                  hành động tiếp theo (ACTION: START|GEN_TC|APPROVE_TC|EXECUTE|COMMIT|CLOSE_PHASE|PUSH|FINAL_VERIFY|DONE|BLOCKED)
+    auto next                  hành động tiếp theo (ACTION: START|GEN_TC|APPROVE_TC|EXECUTE|COMMIT|COMMIT_CLOSE|CLOSE_PHASE|PUSH|FINAL_VERIFY|DONE|BLOCKED)
     auto wait <nhãn>           gọi ngay trước khi spawn subagent rồi kết thúc lượt chờ; đếm số lần thử
     auto close-check <N>       kiểm tra điều kiện đóng phase N (exit 1 nếu chưa đạt)
     auto close <N>             đóng phase N (đặt ✅) nếu close-check đạt
@@ -676,7 +705,7 @@ def cmd_auto(argv):
         save_state(s)
         nxt = auto_next(s)
         print(f"ACTION: {nxt['action']}")
-        for k in ("task", "step", "phase", "desc", "phase_status"):
+        for k in ("task", "step", "phase", "desc", "phase_status", "resume"):
             if k in nxt:
                 print(f"{k.upper()}: {nxt[k]}")
         for pr in nxt.get("problems", []):
@@ -748,6 +777,16 @@ def cmd_auto(argv):
         print(json.dumps(s, ensure_ascii=False, indent=2) if s else "execute-all: chưa start")
 
 
+GIT_CMD_RE = r"(?:^|[;&|(\n]|\$\()\s*(?:\w+=\S*\s+)*git(?:\s+-[Cc]\s+\S+)*\s+{sub}\b"
+
+
+def git_subcommand(cmd, sub):
+    """Phần lệnh từ `git <sub>` (đứng đầu một lệnh con: đầu chuỗi hoặc sau ; & | ( xuống dòng) đến hết chuỗi.
+    None nếu không có. Tránh bắt nhầm `grep "git push" ...`, `echo git commit`."""
+    m = re.search(GIT_CMD_RE.format(sub=sub), cmd)
+    return cmd[m.start():] if m else None
+
+
 def cmd_guard_bash():
     """PreToolUse hook cho Bash: commit/push đúng quy trình (CLAUDE.md bước 6, chế độ execute-all)."""
     try:
@@ -755,15 +794,20 @@ def cmd_guard_bash():
     except Exception:
         sys.exit(0)
     auto = auto_running()
-    if re.search(r"\bgit\b.*\bpush\b", cmd):
-        if re.search(r"\s(--force\S*|-f)\b|\s\+[\w/.-]+", cmd):
+    push = git_subcommand(cmd, "push")
+    if push is not None:
+        if re.search(r"\s(--force\S*|-f)\b|\s\+[\w/.-]+", push):
             deny("Không force push.")
-        if auto and not PHASE_TAG_RE.search(git("log", "-1", "--format=%s")):
-            deny("execute-all chỉ push ngay sau commit đóng phase (message chứa [phase-N]).")
-    if re.search(r"\bgit\b.*\bcommit\b", cmd):
-        if "--no-verify" in cmd:
+        if auto and not (PHASE_TAG_RE.search(git("log", "-1", "--format=%s"))
+                         or re.search(r"\bci-check/", push)
+                         or auto_next(load_state())["action"] == "CLOSE_PHASE"):
+            deny("execute-all chỉ push: ngay sau commit đóng phase ([phase-N]), khi đang đóng phase "
+                 "(kiểm chứng CI trên main), hoặc nhánh ci-check/* (test nghiệm thu CI).")
+    commit = git_subcommand(cmd, "commit")
+    if commit is not None:
+        if "--no-verify" in commit:
             deny("Không bỏ qua git hook bằng --no-verify.")
-        if auto and "--amend" in cmd:
+        if auto and "--amend" in commit:
             deny("execute-all không amend commit.")
         tags, ptags = TASK_TAG_RE.findall(cmd), PHASE_TAG_RE.findall(cmd)
         if auto and not tags and not ptags:
