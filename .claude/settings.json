@@ -78,7 +78,8 @@
       "Bash(cd:*)",
       "Bash(rm:*)",
       "WebFetch",
-      "WebSearch"
+      "WebSearch",
+      "mcp__claude-in-chrome"
     ],
     "deny": [
       "Bash(git push --force:*)",
