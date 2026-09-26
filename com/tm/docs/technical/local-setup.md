@@ -56,7 +56,7 @@ go run ./services/core/cmd/server                   # hoặc: bazel run //servic
 #    Prometheus (job `core`) scrape host.docker.internal:8080/metrics — xem http://localhost:9090/targets.
 #    Trace + metric RED gửi OTLP/HTTP tới otel-collector localhost:4318 (biến OTEL_*, bảng dưới) —
 #    xem trace trong Grafana Explore (datasource tempo), dashboard RED với service = snaptix/core.
-go run ./services/core/cmd/worker          # terminal khác
+go run ./services/core/cmd/worker          # terminal khác — hiện là skeleton (chưa có job, không cần env): log JSON, Ctrl+C → exit 0
 go run ./services/stats-worker/cmd/worker  # terminal khác
 
 # 4. App (Node + React)
@@ -133,6 +133,25 @@ bazel test //...              # mọi target (CI chỉ test target bị ảnh h�
 bazel run --config=linux-arm64 //tools/smoke:smoke_docker     # Apple Silicon → nạp com.tm.go.smoke:v1.0.0 vào Docker
 docker run --rm com.tm.go.smoke:v1.0.0                        # in "snaptix smoke ok"
 bazel build --config=linux-amd64 //tools/smoke:smoke_image    # server x86
+
+# Image core (attr image = "core-server" / "core-worker" trong BUILD → tag com.tm.go.core-server|core-worker:v1.0.0)
+bazel run --config=linux-arm64 //services/core/cmd/server:server_docker   # → com.tm.go.core-server:v1.0.0, entrypoint /app/server
+bazel run --config=linux-arm64 //services/core/cmd/worker:worker_docker   # → com.tm.go.core-worker:v1.0.0, entrypoint /app/worker
+#   Kiểm kết quả thật bằng `docker image ls | grep com.tm.go.core-`, không tin riêng exit code của `bazel run`.
+#   Server x86: --config=linux-amd64. Image distroless nonroot (uid 65532), không có shell.
+# Chạy core trong mạng compose (sau `make up`; compose không khai báo networks → mạng snaptix_default):
+docker run -d --name core --network snaptix_default -p 127.0.0.1:18080:8080 \
+  -e CORE_DATABASE_URL='postgres://snaptix:snaptix@postgres-core:5432/core?sslmode=disable' \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 \
+  com.tm.go.core-server:v1.0.0
+curl localhost:18080/readyz          # 200 khi ping được postgres-core
+#   Không dùng mạng compose: CORE_DATABASE_URL=...@host.docker.internal:5432/..., OTLP http://host.docker.internal:4318
+# Dừng graceful: docker stop -t phải > CORE_SHUTDOWN_TIMEOUT + 1 s (hạn HTTP + tối thiểu 1 s đóng pool/flush telemetry),
+#   nếu không Docker gửi SIGKILL (exit 137) giữa chừng. Mặc định CORE_SHUTDOWN_TIMEOUT=10s → dùng -t 12 trở lên:
+docker stop -t 12 core && docker rm core   # log shutdown_step signal → http_stopped → pool_closed → done, exit 0
+# Worker (skeleton, chưa có job): không cần env, không mở cổng; dừng bằng SIGTERM → exit 0
+docker run -d --name core-worker com.tm.go.core-worker:v1.0.0
+docker stop -t 12 core-worker && docker rm core-worker
 
 # App
 cd com/tm/app

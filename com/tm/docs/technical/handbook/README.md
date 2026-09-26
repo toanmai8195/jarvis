@@ -38,6 +38,7 @@ handbook/
 | P0-T08 | Middleware: request ID, recover, access log, OTel HTTP | [phase-0/P0-T08.md](phase-0/P0-T08.md) |
 | P0-T09 | Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng | [phase-0/P0-T09.md](phase-0/P0-T09.md) |
 | P0-T10 | Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP | [phase-0/P0-T10.md](phase-0/P0-T10.md) |
+| P0-T10a | Image OCI cho core: macro `com_tm_go_image` cho `cmd/server`, `cmd/worker` | [phase-0/P0-T10a.md](phase-0/P0-T10a.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -100,6 +101,10 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `otel/sdk`, `go/slog`, `observability/logging`, `go/testing` | P0-T10 | Lỗi export thành log slog WARN, không in text ra stderr | [P0-T10.md](phase-0/P0-T10.md#lỗi-export-thành-log-slog-warn-không-in-text-ra-stderr) |
 | `go/context`, `go/channel`, `otel/sdk`, `go/signal` | P0-T10 | Flush telemetry song song với đóng pool, cùng hạn, log bằng key riêng | [P0-T10.md](phase-0/P0-T10.md#flush-telemetry-song-song-với-đóng-pool-cùng-hạn-log-bằng-key-riêng) |
 | `go/pgx`, `pg/pool`, `otel/trace` | P0-T10 | Span PG bằng `otelpgx`: cần `AcquireTracer` + `ConnectTracer`, không chỉ `QueryTracer` | [P0-T10.md](phase-0/P0-T10.md#span-pg-bằng-otelpgx-cần-acquiretracer--connecttracer-không-chỉ-querytracer) |
+| `bazel/macro`, `bazel/gazelle`, `docker` | P0-T10a | Tên image tách khỏi tên target: attr `image` trên macro, Gazelle giữ nguyên | [P0-T10a.md](phase-0/P0-T10a.md#tên-image-tách-khỏi-tên-target-attr-image-trên-macro-gazelle-giữ-nguyên) |
+| `bazel/rules_oci`, `bazel/tar`, `docker` | P0-T10a | `tar` của tar.bzl mặc định đóng gói runfiles: tắt để layer chỉ còn binary | [P0-T10a.md](phase-0/P0-T10a.md#tar-của-tarbzl-mặc-định-đóng-gói-runfiles-tắt-để-layer-chỉ-còn-binary) |
+| `go/signal`, `go/slog`, `go/testing`, `go/package-layout` | P0-T10a | Worker skeleton: `run(ctx, log, sigs) int` tách khỏi `main`, không kéo pgx/http | [P0-T10a.md](phase-0/P0-T10a.md#worker-skeleton-runctx-log-sigs-int-tách-khỏi-main-không-kéo-pgxhttp) |
+| `docker`, `docker/compose`, `otel/collector` | P0-T10a | Chạy image core cạnh stack compose và kiểm kết quả thật | [P0-T10a.md](phase-0/P0-T10a.md#chạy-image-core-cạnh-stack-compose-và-kiểm-kết-quả-thật) |
 
 ## Mẫu một file
 

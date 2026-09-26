@@ -22,6 +22,7 @@ go_library(
 com_tm_go_image(
     name = "server",
     embed = [":server_lib"],
+    image = "core-server",
     visibility = ["//visibility:public"],
 )
 

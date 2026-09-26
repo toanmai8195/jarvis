@@ -104,3 +104,12 @@ Ngoài phạm vi (ghi lại, không làm):
 - `OTEL_EXPORTER_OTLP_PROTOCOL` không được hỗ trợ (luôn OTLP/HTTP protobuf). `otlptracehttp` v1.46.0 vẫn kéo `google.golang.org/grpc` vào module graph qua `internal/otlpconfig` (không dùng lúc chạy).
 - P0-T10a (image OCI): container core cần `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318` (mạng compose), không dùng mặc định `localhost:4318`.
 - stats-worker (task sau) dùng lại `otelx.Setup` với `ServiceName: "stats-worker"`.
+
+## P0-T10a
+
+- **Tên image**: quyết định mục P0-T01a — attr `image` trên `com_tm_go_image` (Gazelle giữ nguyên), core dùng `core-server`/`core-worker`. stats-worker (task sau) đặt `image = "stats-worker"` (hoặc `stats-worker-worker`) để không trùng `com.tm.go.worker`.
+- **Macro đổi hành vi cho mọi image**: `tar(..., include_runfiles = False)` — layer binary không còn bản sao `app/<name>.runfiles/...`. Smoke `layer_bytes` 3868624 → 2291152 (arm64).
+- **Compose chưa có service core/worker** (A3): khi thêm (phase triển khai / task sau) cần `stop_grace_period` > `CORE_SHUTDOWN_TIMEOUT` + 1 s, `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318`, `CORE_DATABASE_URL=...@postgres-core:5432/...`; image không có shell nên healthcheck phải dùng binary riêng hoặc check từ ngoài.
+- **Worker skeleton** chưa có config/env/OTel/pool — P4-T08/P6-T01 thêm, cùng hạn dừng có timeout (như server) khi có job.
+- **CI chưa build image**: G14 giữ 🟨; CI thật kiểm khi đóng phase. Có thể cân nhắc job build `--config=linux-amd64 //services/...:*_image` trên runner Linux (ngoài phạm vi).
+- **Chạy TC trên zsh**: `$SL:server_docker` bị zsh hiểu là modifier `:s` → nhãn hỏng; các TC04–TC17 chạy bằng `/bin/bash` (prep hỗ trợ bash 3.2).

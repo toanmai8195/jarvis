@@ -38,10 +38,22 @@ def _image_tag_test(ctx):
 
 image_tag_test = unittest.make(_image_tag_test)
 
+def _image_tag_with_image_name_test(ctx):
+    env = unittest.begin(ctx)
+    asserts.equals(env, "com.tm.go.core-server:v1.0.0", image_tag("server", image = "core-server"))
+    asserts.equals(env, "com.tm.go.core-worker:v1.0.0", image_tag("worker", image = "core-worker"))
+    asserts.equals(env, "com.tm.go.core-worker:v2.0.0", image_tag("worker", tag = "v2.0.0", image = "core-worker"))
+    asserts.equals(env, "com.tm.go.worker:v1.0.0", image_tag("worker", image = None), "image None → theo name")
+    asserts.equals(env, "com.tm.go.worker:v1.0.0", image_tag("worker", image = ""), "image rỗng → theo name")
+    return unittest.end(env)
+
+image_tag_with_image_name_test = unittest.make(_image_tag_with_image_name_test)
+
 def com_tm_container_test_suite(name):
     unittest.suite(
         name,
         image_names_without_repository_test,
         image_names_with_repository_test,
         image_tag_test,
+        image_tag_with_image_name_test,
     )

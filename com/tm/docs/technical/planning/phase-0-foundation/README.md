@@ -116,7 +116,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `feat(otelx): pkg/otelx — OTel SDK trace+metric export OTLP/HTTP, propagator TraceContext+Baggage, OTEL_SDK_DISABLED, validate endpoint; core: span PG qua otelpgx, flush telemetry song song đóng pool [P0-T10]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T10a** Image OCI cho core: dùng macro `com_tm_go_image` (có từ P0-T01a) cho `cmd/server`, `cmd/worker` `[G14]`
+- [x] **P0-T10a** Image OCI cho core: dùng macro `com_tm_go_image` (có từ P0-T01a) cho `cmd/server`, `cmd/worker` `[G14]`
+  - [x] 1. Test case: P0-T10a-TC01..TC17 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `feat(core): image OCI core-server/core-worker bằng com_tm_go_image — attr image cho tag, tắt runfiles trong layer, skeleton cmd/worker [P0-T10a]` · Push: không (execute-all push khi đóng phase)
 
 ### bff
 - [ ] **P0-T11** Skeleton `com/tm/app/apps/bff` Fastify + TS (ESM, strict, `tsx` khi dev, `tsup` khi build): plugin config, logger pino JSON, `/healthz`, `/readyz`

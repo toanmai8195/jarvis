@@ -9,7 +9,8 @@ Một lời gọi `com_tm_go_image(name = "x", ...)` sinh:
     x          go_binary (host khi build thường; Linux khi --config=linux-arm64|amd64)
     x_layer    tar chứa binary tại /app/x
     x_image    oci_image trên base distroless, entrypoint /app/x
-    x_docker   oci_load, tag com.tm.go.x:<tag> — `bazel run` để nạp vào Docker
+    x_docker   oci_load, tag com.tm.go.x:<tag> (hoặc com.tm.go.<image>:<tag> khi
+               truyền `image`, vd image = "core-server") — `bazel run` để nạp vào Docker
     x_push     oci_push — chỉ khi truyền `repository`
 
 Image chỉ tương thích với platform Linux: `bazel build //...` trên macOS bỏ qua
@@ -43,12 +44,24 @@ def image_names(name, repository = None):
         names["push"] = name + "_push"
     return names
 
-def image_tag(name, tag = "v1.0.0"):
-    """Tag Docker local của image: `com.tm.go.<name>:<tag>`."""
-    return "com.tm.go.%s:%s" % (name, tag)
+def image_tag(name, tag = "v1.0.0", image = None):
+    """Tag Docker local của image: `com.tm.go.<image hoặc name>:<tag>`.
+
+    Args:
+      name: tên go_binary; dùng làm tên image khi không truyền `image`.
+      tag: tag image, mặc định `v1.0.0`.
+      image: tên image đặt tường minh, ví dụ `core-server` (quy tắc
+        `<service>-<binary>` cho binary của service, tránh trùng giữa
+        `services/core/cmd/worker` và `services/stats-worker/cmd/worker`).
+
+    Returns:
+      string: ví dụ `com.tm.go.core-server:v1.0.0`.
+    """
+    return "com.tm.go.%s:%s" % (image or name, tag)
 
 def com_tm_go_image(
         name,
+        image = None,
         repository = None,
         tag = "v1.0.0",
         base = "@distroless_static",
@@ -58,7 +71,11 @@ def com_tm_go_image(
     """go_binary + layer + oci_image + oci_load (+ oci_push khi có repository).
 
     Args:
-      name: tên go_binary (Gazelle đặt theo thư mục).
+      name: tên go_binary (Gazelle đặt theo thư mục); tên target và
+        entrypoint `/app/<name>` luôn theo `name`.
+      image: tên image cho tag Docker `com.tm.go.<image>:<tag>`; bỏ trống thì
+        dùng `name`. Gazelle giữ nguyên attr này khi chạy lại (nó chỉ merge
+        attr của go_binary như embed/srcs/deps). Không truyền xuống go_binary.
       repository: registry đích cho `<name>_push`, ví dụ `ghcr.io/org/core`.
       tag: tag image, mặc định `v1.0.0`.
       base: base image (oci.pull trong MODULE.bazel).
@@ -77,9 +94,14 @@ def com_tm_go_image(
     )
 
     # go_binary xuất ra <pkg>/<name>_/<name>; đưa vào tar tại app/<name>.
+    # include_runfiles = False: mặc định (mtree "auto") tar.bzl đóng gói cả
+    # runfiles của go_binary — app/<name>.runfiles/_main/.../<name>, bản sao
+    # thứ hai của binary, làm layer to gấp đôi. Binary Go tĩnh (pure) không
+    # cần runfiles lúc chạy, nên layer chỉ gồm app/ và app/<name>.
     tar(
         name = names["layer"],
         srcs = [":" + names["binary"]],
+        include_runfiles = False,
         mutate = mutate(
             strip_prefix = "%s/%s_" % (native.package_name(), name),
             package_dir = "app",
@@ -98,7 +120,7 @@ def com_tm_go_image(
     oci_load(
         name = names["docker"],
         image = ":" + names["image"],
-        repo_tags = [image_tag(name, tag)],
+        repo_tags = [image_tag(name, tag, image)],
         target_compatible_with = _LINUX_ONLY,
     )
 

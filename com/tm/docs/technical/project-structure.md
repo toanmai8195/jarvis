@@ -81,7 +81,8 @@ com/tm/server/
 | Sau khi thêm file | `bazel run //:gazelle` |
 | Code sinh ra (sqlc, oapi-codegen) | Commit vào repo |
 | Test cần Docker | `tags = ["requires-docker", "requires-network"]`, `size = "large"` |
-| Image | Macro `com_tm_go_image` (`tools/rules/com_tm_container.bzl`), gazelle `map_kind` cho mọi `go_binary`. Sinh `<name>`, `<name>_image`, `<name>_docker` (tag `com.tm.go.<name>:v1.0.0`), `<name>_push` khi có `repository`. Base distroless pin digest (`gcr.io/distroless/static-debian12:nonroot`, binary tại `/app/<name>`). Target image `target_compatible_with` Linux → `bazel build //...` trên macOS bỏ qua (SKIPPED) image, vẫn build binary/test |
+| Image | Macro `com_tm_go_image` (`tools/rules/com_tm_container.bzl`), gazelle `map_kind` cho mọi `go_binary`. Sinh `<name>`, `<name>_image`, `<name>_docker`, `<name>_push` khi có `repository`. Base distroless pin digest (`gcr.io/distroless/static-debian12:nonroot`), layer binary chỉ gồm `/app/<name>` (không đóng gói runfiles). Target image `target_compatible_with` Linux → `bazel build //...` trên macOS bỏ qua (SKIPPED) image, vẫn build binary/test |
+| Tên image | Binary của service: thêm attr `image = "<service>-<binary>"` vào lời gọi `com_tm_go_image` trong BUILD (Gazelle giữ attr này) → tag `com.tm.go.<service>-<binary>:v1.0.0`, ví dụ `//services/core/cmd/server` → `com.tm.go.core-server:v1.0.0`, `//services/core/cmd/worker` → `com.tm.go.core-worker:v1.0.0` (tránh trùng với `services/stats-worker/cmd/worker`). Không đặt `image` (tool như `tools/smoke`) → `com.tm.go.<name>:v1.0.0`. Tên target (`server_docker`) và entrypoint (`/app/server`) luôn theo `name` do Gazelle đặt |
 | Build image | `bazel run --config=linux-arm64 //path:<name>_docker` (Apple Silicon) · `--config=linux-amd64` (server x86). Ví dụ: `//tools/smoke:smoke_docker` → `com.tm.go.smoke:v1.0.0` |
 | IDE / gopls | Dùng `go.mod` trực tiếp, không cần `GOPACKAGESDRIVER`. Code phải build được bằng cả `go` lẫn Bazel |
 
