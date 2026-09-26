@@ -8,6 +8,13 @@
 - Go 1.27.1+ (theo `go` trong `com/tm/server/go.mod`; Bazel tự tải đúng SDK này), Bazelisk (đọc phiên bản Bazel từ `.bazelversion`)
 - Node.js 22+ và pnpm (bất kỳ bản nào ≥ 9.7; trong `com/tm/app` pnpm tự chuyển sang bản pin ở `packageManager` = `pnpm@11.18.0` — kiểm bằng `pnpm -v`)
 - Công cụ: `goose`, `sqlc`
+  - `goose` pin **v3.28.0**, cài trên host (không chạy trong container, vì bind mount repo từ `~/Documents` làm Docker Desktop treo):
+    ```bash
+    go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+    export PATH="$(go env GOPATH)/bin:$PATH"   # nếu chưa có; thêm vào ~/.zshrc
+    goose -version                              # goose version: v3.28.0
+    ```
+    Migration là file SQL đánh số tuần tự (`00001_init.sql`, tạo mới: `goose -s -dir <thư mục> create <tên> sql`), bảng version mặc định `public.goose_db_version`.
 
 ## Các bước
 
@@ -18,7 +25,9 @@ git clone <repo-url> snaptix && cd snaptix
 #    Không cần deploy/.env (mặc định khớp bảng dưới). Chi tiết: deploy/README.md
 docker compose -f deploy/docker-compose.yml up -d --wait
 
-# 2. Migration
+# 2. Migration (goose trên host; đặt CORE_DATABASE_URL, ANALYTICS_DATABASE_URL theo bảng "Biến môi trường")
+export CORE_DATABASE_URL=postgres://snaptix:snaptix@localhost:5432/core
+export ANALYTICS_DATABASE_URL=postgres://snaptix:snaptix@localhost:5433/analytics
 goose -dir com/tm/server/db/core/migrations postgres "$CORE_DATABASE_URL" up
 goose -dir com/tm/server/db/analytics/migrations postgres "$ANALYTICS_DATABASE_URL" up
 

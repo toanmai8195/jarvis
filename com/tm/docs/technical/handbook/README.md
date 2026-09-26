@@ -30,6 +30,7 @@ handbook/
 | P0-T01a | `com/tm/server` Bazel workspace (bzlmod, Gazelle, một `go.mod`, macro `com_tm_go_image`) | [phase-0/P0-T01a.md](phase-0/P0-T01a.md) |
 | P0-T01b | `com/tm/app` pnpm workspace (`pnpm-workspace.yaml`, `package.json` gốc, script chạy theo filter) | [phase-0/P0-T01b.md](phase-0/P0-T01b.md) |
 | P0-T02 | `deploy/docker-compose.yml`: PG core/analytics, MongoDB, Redis, otel-collector, Prometheus, Tempo, Grafana | [phase-0/P0-T02.md](phase-0/P0-T02.md) |
+| P0-T03 | goose, `db/core/migrations`, `db/analytics/migrations`, migration rỗng đầu tiên | [phase-0/P0-T03.md](phase-0/P0-T03.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -55,6 +56,8 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `mongo/ops`, `docker` | P0-T02 | MongoDB 8.x không khởi động trên kernel ≥ 6.19: `GLIBC_TUNABLES=glibc.pthread.rseq=1` | [P0-T02.md](phase-0/P0-T02.md#mongodb-8x-không-khởi-động-trên-kernel--619-glibc_tunablesglibcpthreadrseq1) |
 | `pg/ops`, `docker` | P0-T02 | PostgreSQL 18: volume mount ở `/var/lib/postgresql`, không phải `.../data` | [P0-T02.md](phase-0/P0-T02.md#postgresql-18-volume-mount-ở-varlibpostgresql-không-phải-data) |
 | `bash`, `testing`, `docker/compose` | P0-T02 | Script kiểm tĩnh compose: pin image + healthcheck không giả | [P0-T02.md](phase-0/P0-T02.md#script-kiểm-tĩnh-compose-pin-image--healthcheck-không-giả) |
+| `pg/migration`, `go/tooling` | P0-T03 | Pin goose bằng `go install ...@v3.28.0`, chạy trên host | [P0-T03.md](phase-0/P0-T03.md#pin-goose-bằng-go-install-v3280-chạy-trên-host) |
+| `pg/migration` | P0-T03 | Migration rỗng đầu tiên: SQL, đánh số tuần tự, annotation Up/Down | [P0-T03.md](phase-0/P0-T03.md#migration-rỗng-đầu-tiên-sql-đánh-số-tuần-tự-annotation-updown) |
 
 ## Mẫu một file
 

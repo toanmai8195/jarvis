@@ -30,3 +30,10 @@ Việc ngoài phạm vi phát hiện trong lúc chạy execute-all, để báo c
 - P0-T06 (dashboard): thêm `deploy/observability/grafana/provisioning/dashboards/` (provider + JSON). Image grafana COPY cả thư mục `provisioning`, nên chỉ cần `up -d --wait` là có. Datasource uid cố định: `prometheus`, `tempo`.
 - P0-T07+: target scrape của core thêm vào `deploy/observability/prometheus/prometheus.yml` (từ container gọi host qua `host.docker.internal:8080`; trên Linux cần `extra_hosts: host.docker.internal:host-gateway` cho service `prometheus`).
 - Tempo chưa bật `metrics_generator` (service graph/span metrics). Nếu phase sau cần, cấu hình `metrics_generator` + remote write vào Prometheus (`--web.enable-remote-write-receiver`).
+
+## P0-T03
+
+- P0-T04 (CI) / P0-T05 (`make migrate`): cài goose đúng bản pin `go install github.com/pressly/goose/v3/cmd/goose@v3.28.0` (không `@latest`), chạy trên host (không mount repo vào container). `make migrate` = hai lệnh bước 2 của `local-setup.md`, cần `$(go env GOPATH)/bin` trong `PATH`.
+- Máy dev: `$(go env GOPATH)/bin` (`~/go/bin`) chưa có trong `PATH` của shell; người dùng nên thêm vào `~/.zshrc` (đã ghi trong `local-setup.md`).
+- Lệnh nguyên văn của vài TC đã duyệt có nhiễu không phải lỗi: TC02 `ls $CORE_DIR $AN_DIR | grep -v ...` in dòng tiêu đề thư mục của `ls` (tên file đều khớp); TC04 `grep -rn 'goose@latest' com/tm/docs` khớp chính dòng định nghĩa TC04 trong `tasks/P0-T03/test-cases.md`; TC16 `git status --porcelain com/tm/server/db` in `?? com/tm/server/db/` vì file của task chưa commit (không có file lạ, `-uall` chỉ ra 2 migration). Không sửa được vì là test case đã duyệt.
+- macOS không có `timeout` (coreutils) — test đo thời gian bằng `date +%s`.
