@@ -75,6 +75,7 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 | `CORE_DATABASE_URL` | core (bắt buộc; thiếu/rỗng/sai → core thoát với log ERROR nêu tên biến) | `postgres://snaptix:snaptix@localhost:5432/core?sslmode=disable` |
 | `CORE_HTTP_ADDR` | core (mặc định `:8080`, dạng `host:port`) | `:8080` |
 | `CORE_LOG_LEVEL` | core (mặc định `info`; `debug` \| `info` \| `warn` \| `error`) | `info` |
+| `CORE_SHUTDOWN_TIMEOUT` | core (mặc định `10s`; định dạng Go duration `time.ParseDuration`, vd `10s`, `1500ms`; `0`/âm/thiếu đơn vị → lỗi cấu hình). Hạn chờ request đang chạy khi nhận SIGTERM/SIGINT, hết hạn thì đóng cưỡng bức, exit `1` | `10s` |
 | `ANALYTICS_DATABASE_URL` | stats-worker, bff | `postgres://snaptix:snaptix@localhost:5433/analytics` |
 | `REDIS_URL` | core, bff | `redis://localhost:6379` |
 | `MONGODB_URI` | bff | `mongodb://localhost:27017/snaptix` |

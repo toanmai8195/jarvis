@@ -88,3 +88,11 @@ Ngoài phạm vi (ghi lại, không làm):
 - Không có access log cho request bị huỷ bằng `panic(http.ErrAbortHandler)` (access log ghi sau `next`). Chấp nhận; ghi trong handbook.
 - 404/405 của chi vẫn trả body text mặc định (`404 page not found`), chưa theo format lỗi JSON của api.md — thuộc task có route nghiệp vụ (map lỗi → HTTP).
 - Quy trình: agent triển khai có một lần sửa `services/core/internal/httpx/otel.go` bằng python qua Bash (đổi chữ ký `telemetry` bỏ trả `error`, thêm import `log/slog`) thay vì Edit — vi phạm quy tắc. Nội dung đã được kiểm lại bằng gofmt/vet/test/lint/bazel ở bước 4.
+
+## P0-T09
+
+- **G3 chỉ 🟨**: core dừng đúng thứ tự, request đã vào handler được trả xong, request mới bị connection refused. Tiêu chí "rolling deploy dưới tải không lỗi request" cần thêm, ở phase triển khai (nhiều instance + load balancer): `/readyz` trả 503 khi nhận SIGTERM → chờ drain (LB ngừng gửi) → mới `Shutdown`, client/LB retry khi connection refused. Thiếu phần này thì kết nối nằm trong backlog lúc listener đóng có thể nhận reset/empty reply. TC17 đo 4 lần trên máy dev đều 0 lỗi loại này, nhưng không loại trừ được.
+- **P0-T10**: thêm bước flush/`Shutdown` của `TracerProvider`/`MeterProvider` vào trình tự trong `services/core/cmd/server/shutdown.go` (`run`: sau `stopHTTP`, trước hoặc song song `closePool`, dùng phần hạn còn lại). Hiện `main` gọi `run(...)` rồi `os.Exit`, không có `defer` nào.
+- **P0-T10a / phase triển khai**: `stop_grace_period`/`terminationGracePeriodSeconds` của container core phải > `CORE_SHUTDOWN_TIMEOUT` (mặc định 10s) + 1s (đóng pool). Ghi ở `.env.example`, `architecture.md`, handbook.
+- **Tín hiệu thứ hai** thoát ngay mà không đóng pool: pool bị bỏ, PG tự dọn kết nối khi socket đóng. Chấp nhận theo A8.
+- Graceful shutdown của BFF (P0-T11) nên theo cùng quy ước log `shutdown_step` và exit code để dashboard/ops đọc thống nhất.

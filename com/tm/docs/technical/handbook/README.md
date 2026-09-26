@@ -36,6 +36,7 @@ handbook/
 | P0-T06 | Dashboard Grafana cơ bản: RED metrics cho mỗi service | [phase-0/P0-T06.md](phase-0/P0-T06.md) |
 | P0-T07 | Skeleton `services/core`: config env, slog JSON, chi, pgxpool, `/healthz`, `/readyz`, `/metrics` | [phase-0/P0-T07.md](phase-0/P0-T07.md) |
 | P0-T08 | Middleware: request ID, recover, access log, OTel HTTP | [phase-0/P0-T08.md](phase-0/P0-T08.md) |
+| P0-T09 | Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng | [phase-0/P0-T09.md](phase-0/P0-T09.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -89,6 +90,11 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `go/panic`, `go/http`, `security` | P0-T08 | Recover: 500 `INTERNAL` không lộ chi tiết, re-panic `http.ErrAbortHandler`, không ghi header hai lần | [P0-T08.md](phase-0/P0-T08.md#recover-500-internal-không-lộ-chi-tiết-re-panic-httperraborthandler-không-ghi-header-hai-lần) |
 | `otel/trace`, `otel/metric`, `otel/semconv`, `bazel` | P0-T08 | OTel HTTP tự viết bằng API: span server + `http.server.request.duration`, không kéo SDK vào binary | [P0-T08.md](phase-0/P0-T08.md#otel-http-tự-viết-bằng-api-span-server--httpserverrequestduration-không-kéo-sdk-vào-binary) |
 | `observability/prometheus`, `otel/metric` | P0-T08 | Chọn một nguồn cho metric RED: chỉ OTLP, `/metrics` chỉ còn runtime Go | [P0-T08.md](phase-0/P0-T08.md#chọn-một-nguồn-cho-metric-red-chỉ-otlp-metrics-chỉ-còn-runtime-go) |
+| `go/http`, `go/interface`, `go/testing`, `go/signal` | P0-T09 | Tách `run` khỏi `main`: listen tự làm, `Serve(ln)`, interface phía dùng cho server và pool | [P0-T09.md](phase-0/P0-T09.md#tách-run-khỏi-main-listen-tự-làm-serveln-interface-phía-dùng-cho-server-và-pool) |
+| `go/http`, `go/context`, `go/signal` | P0-T09 | `Shutdown` có hạn, hết hạn thì `Close`; tín hiệu thứ hai thoát ngay | [P0-T09.md](phase-0/P0-T09.md#shutdown-có-hạn-hết-hạn-thì-close-tín-hiệu-thứ-hai-thoát-ngay) |
+| `pg/pool`, `go/pgx`, `go/channel` | P0-T09 | `pgxpool.Pool.Close()` có thể treo ~15 s: đóng trong goroutine, chờ có hạn | [P0-T09.md](phase-0/P0-T09.md#pgxpoolpoolclose-có-thể-treo-15-s-đóng-trong-goroutine-chờ-có-hạn) |
+| `go/http`, `go/net` | P0-T09 | `net/http` đóng kết nối có request đọc xong khi đang shutdown, không trả response | [P0-T09.md](phase-0/P0-T09.md#nethttp-đóng-kết-nối-có-request-đọc-xong-khi-đang-shutdown-không-trả-response) |
+| `go/http`, `ops/deploy`, `net/tcp` | P0-T09 | Listener đóng ngay: kết nối mới bị từ chối, backlog bị reset — lý do G3 cần drain + load balancer | [P0-T09.md](phase-0/P0-T09.md#listener-đóng-ngay-kết-nối-mới-bị-từ-chối-backlog-bị-reset--lý-do-g3-cần-drain--load-balancer) |
 
 ## Mẫu một file
 

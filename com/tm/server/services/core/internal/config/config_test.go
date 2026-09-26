@@ -150,6 +150,68 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+func TestLoadShutdownTimeout(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		want    time.Duration
+		wantErr []string // nil = không lỗi
+	}{
+		{name: "không đặt → mặc định 10s", env: map[string]string{}, want: 10 * time.Second},
+		{name: "rỗng → mặc định", env: map[string]string{EnvShutdownTimeout: ""}, want: DefaultShutdownTimeout},
+		{name: "chỉ khoảng trắng → mặc định", env: map[string]string{EnvShutdownTimeout: "  "}, want: DefaultShutdownTimeout},
+		{name: "30s", env: map[string]string{EnvShutdownTimeout: "30s"}, want: 30 * time.Second},
+		{name: "1500ms", env: map[string]string{EnvShutdownTimeout: "1500ms"}, want: 1500 * time.Millisecond},
+		{name: "khoảng trắng hai đầu được bỏ", env: map[string]string{EnvShutdownTimeout: " 2s "}, want: 2 * time.Second},
+		{name: "abc không parse được", env: map[string]string{EnvShutdownTimeout: "abc"}, wantErr: []string{"abc"}},
+		{name: "10 thiếu đơn vị", env: map[string]string{EnvShutdownTimeout: "10"}, wantErr: []string{`"10"`}},
+		{name: "0 bị từ chối", env: map[string]string{EnvShutdownTimeout: "0"}, wantErr: []string{`"0"`}},
+		{name: "0s bị từ chối", env: map[string]string{EnvShutdownTimeout: "0s"}, wantErr: []string{`"0s"`}},
+		{name: "âm bị từ chối", env: map[string]string{EnvShutdownTimeout: "-1s"}, wantErr: []string{`"-1s"`}},
+		{
+			name:    "gom chung với lỗi biến khác",
+			env:     map[string]string{EnvShutdownTimeout: "abc", EnvLogLevel: "verbose"},
+			wantErr: []string{EnvLogLevel},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			m := map[string]string{EnvDatabaseURL: goodDSN}
+			for k, v := range tt.env {
+				m[k] = v
+			}
+			cfg, err := Load(env(m))
+			if tt.wantErr != nil {
+				if err == nil {
+					t.Fatalf("Load() không lỗi, muốn lỗi %s", EnvShutdownTimeout)
+				}
+				// Mỗi lỗi con (errors.Join nối bằng \n) có một dòng bắt đầu bằng tên biến.
+				var found bool
+				for _, line := range strings.Split(err.Error(), "\n") {
+					if strings.HasPrefix(line, EnvShutdownTimeout+":") {
+						found = true
+					}
+				}
+				if !found {
+					t.Errorf("lỗi %q không có dòng bắt đầu bằng %s", err, EnvShutdownTimeout)
+				}
+				for _, s := range tt.wantErr {
+					if !strings.Contains(err.Error(), s) {
+						t.Errorf("lỗi %q thiếu %q", err, s)
+					}
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Load() lỗi: %v", err)
+			}
+			if cfg.ShutdownTimeout != tt.want {
+				t.Errorf("ShutdownTimeout = %v, muốn %v", cfg.ShutdownTimeout, tt.want)
+			}
+		})
+	}
+}
+
 func TestLoadConnectTimeout(t *testing.T) {
 	tests := []struct {
 		name string

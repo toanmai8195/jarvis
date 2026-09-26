@@ -102,7 +102,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `feat(core): middleware request ID (X-Request-ID), recover 500 INTERNAL, access log slog JSON, OTel span + http.server.request.duration theo route pattern chi [P0-T08]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T09** Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng `[G3]`
+- [x] **P0-T09** Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng `[G3]`
+  - [x] 1. Test case: P0-T09-TC01..TC22 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `feat(core): graceful shutdown — SIGTERM/SIGINT, http.Server.Shutdown có hạn CORE_SHUTDOWN_TIMEOUT, đóng pool PG sau cùng có hạn, log shutdown_step, exit 0/1 [P0-T09]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T10** Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP `[G10]`
 - [ ] **P0-T10a** Image OCI cho core: dùng macro `com_tm_go_image` (có từ P0-T01a) cho `cmd/server`, `cmd/worker` `[G14]`
 
@@ -123,7 +129,7 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
 
 | # | Công nghệ | Challenge | Bối cảnh | Hướng giải | Hoàn thành khi | Trạng thái |
 |---|---|---|---|---|---|---|
-| G3 | Golang | Graceful shutdown | Deploy khi đang có giao dịch | Bắt SIGTERM, ngừng nhận request, chờ in-flight, đóng pool theo thứ tự | Rolling deploy dưới tải không mất/không lỗi request | ⬜ |
+| G3 | Golang | Graceful shutdown | Deploy khi đang có giao dịch | Bắt SIGTERM, ngừng nhận request, chờ in-flight, đóng pool theo thứ tự | Rolling deploy dưới tải không mất/không lỗi request | 🟨 |
 | G10 | Golang | Observability | Debug trên nhiều service | OpenTelemetry trace, slog JSON, Prometheus metrics | Một trace hiển thị đủ BFF → core → PG | 🟨 |
 | G14 | Golang | Monorepo Go với Bazel | `com/tm/server` nhiều service + thư viện | rules_go + Gazelle + bzlmod, một `go.mod`, visibility, test theo target bị ảnh hưởng | Code build được bằng cả `go` và Bazel; CI chỉ test target bị ảnh hưởng | 🟨 |
 

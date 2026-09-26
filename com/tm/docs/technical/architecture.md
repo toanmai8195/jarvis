@@ -87,6 +87,10 @@ flowchart LR
 
 Máy dev: Docker 8 GB RAM / 8 CPU, k6 chạy cùng máy. Cột "Nghiệm thu máy dev" là điều kiện đóng phase 7; cột production là mục tiêu thiết kế.
 
+## Dừng service (graceful shutdown)
+
+Core (P0-T09, `services/core/cmd/server/shutdown.go`) nhận SIGTERM/SIGINT rồi dừng theo thứ tự: `http.Server.Shutdown` với hạn `CORE_SHUTDOWN_TIMEOUT` (đóng listener ngay → kết nối mới bị từ chối, chờ request đang chạy) → hết hạn thì `Close` cưỡng bức → đóng pool PG (chờ tối đa phần hạn còn lại, ít nhất 1 s) → thoát. Mỗi mốc là một dòng log có `shutdown_step` (`signal`, `http_stopped`/`timeout`, `pool_closed`/`pool_close_timeout`, `done`). Exit `0` khi dừng sạch, `1` khi phải cắt cưỡng bức, đóng pool quá hạn, lỗi listen hoặc lỗi cấu hình; tín hiệu thứ hai → thoát ngay. Chưa có khoảng chờ drain / `/readyz` 503 cho load balancer: rolling deploy không lỗi request (G3) cần phần này ở phase triển khai. Orchestrator phải cho thời gian dừng (`stop_grace_period`, `terminationGracePeriodSeconds`) lớn hơn `CORE_SHUTDOWN_TIMEOUT` + 1 s.
+
 ## Observability
 
 - **Tracing**: OpenTelemetry, trace ID truyền từ BFF sang core qua header `traceparent`.

@@ -22,12 +22,16 @@ const (
 	EnvDatabaseURL = "CORE_DATABASE_URL"
 	EnvHTTPAddr    = "CORE_HTTP_ADDR"
 	EnvLogLevel    = "CORE_LOG_LEVEL"
+	// EnvShutdownTimeout là thời gian tối đa chờ request đang chạy khi dừng
+	// (định dạng time.ParseDuration, ví dụ 10s, 1500ms).
+	EnvShutdownTimeout = "CORE_SHUTDOWN_TIMEOUT"
 )
 
 // Giá trị mặc định.
 const (
-	DefaultHTTPAddr = ":8080"
-	DefaultLogLevel = slog.LevelInfo
+	DefaultHTTPAddr        = ":8080"
+	DefaultLogLevel        = slog.LevelInfo
+	DefaultShutdownTimeout = 10 * time.Second
 
 	// defaultConnectTimeout áp cho mỗi lần mở kết nối PG khi DSN không có
 	// connect_timeout: kết nối mở dở (PG treo mạng) không bị giữ mãi.
@@ -42,12 +46,14 @@ type Config struct {
 	DB       *pgxpool.Config
 	HTTPAddr string
 	LogLevel slog.Level
+	// ShutdownTimeout luôn > 0: hạn chờ request đang chạy khi nhận SIGTERM.
+	ShutdownTimeout time.Duration
 }
 
 // Load đọc cấu hình qua lookup (thường là os.LookupEnv). Mọi biến sai được
 // gom lại trong một error, mỗi lỗi bắt đầu bằng tên biến.
 func Load(lookup func(string) (string, bool)) (Config, error) {
-	cfg := Config{HTTPAddr: DefaultHTTPAddr, LogLevel: DefaultLogLevel}
+	cfg := Config{HTTPAddr: DefaultHTTPAddr, LogLevel: DefaultLogLevel, ShutdownTimeout: DefaultShutdownTimeout}
 	var errs []error
 
 	if dsn, _ := lookup(EnvDatabaseURL); strings.TrimSpace(dsn) == "" {
@@ -79,10 +85,32 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		}
 	}
 
+	if v, ok := lookup(EnvShutdownTimeout); ok && strings.TrimSpace(v) != "" {
+		d, err := parsePositiveDuration(v)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", EnvShutdownTimeout, err))
+		} else {
+			cfg.ShutdownTimeout = d
+		}
+	}
+
 	if len(errs) > 0 {
 		return Config{}, errors.Join(errs...)
 	}
 	return cfg, nil
+}
+
+// parsePositiveDuration nhận định dạng time.ParseDuration và bắt buộc > 0.
+// "10" (thiếu đơn vị) lỗi do ParseDuration; "0" parse được nên phải chặn riêng.
+func parsePositiveDuration(s string) (time.Duration, error) {
+	d, err := time.ParseDuration(strings.TrimSpace(s))
+	if err != nil {
+		return 0, fmt.Errorf("%q không phải duration hợp lệ (ví dụ 10s, 1500ms): %w", s, err)
+	}
+	if d <= 0 {
+		return 0, fmt.Errorf("%q phải lớn hơn 0", s)
+	}
+	return d, nil
 }
 
 // validateAddr chấp nhận "host:port" hoặc ":port", port là số 0..65535.

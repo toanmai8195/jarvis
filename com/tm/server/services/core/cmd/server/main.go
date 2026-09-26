@@ -1,5 +1,5 @@
 // Command server là HTTP server của core. main chỉ wiring thủ công:
-// config → logger → pool PG → router → http.Server.
+// config → logger → pool PG → router → http.Server → run (graceful shutdown).
 package main
 
 import (
@@ -32,7 +32,8 @@ func main() {
 		log.Error("tạo pool PG thất bại", "err", err)
 		os.Exit(1)
 	}
-	defer pool.Close()
+	// Không đóng pool bằng defer: os.Exit bỏ qua defer. run đóng pool tường
+	// minh, sau khi HTTP server đã dừng.
 	log.Debug("pool PG đã tạo",
 		"db_host", cfg.DB.ConnConfig.Host,
 		"db_port", cfg.DB.ConnConfig.Port,
@@ -51,13 +52,11 @@ func main() {
 		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-	log.Info("core đang lắng nghe", "addr", cfg.HTTPAddr)
-	// Graceful shutdown (SIGTERM, Shutdown có timeout) thuộc P0-T09.
-	if err := srv.ListenAndServe(); err != nil {
-		log.Error("http server dừng", "err", err)
-		pool.Close()
-		os.Exit(1)
-	}
+	// Đăng ký tín hiệu trước khi mở cổng để SIGTERM đến sớm vẫn được xử lý
+	// graceful thay vì giết process.
+	sigs := notifyShutdown()
+	err = run(context.Background(), log, srv, pool, cfg.HTTPAddr, cfg.ShutdownTimeout, sigs)
+	os.Exit(exitCode(err))
 }
 
 // newLogger trả logger slog JSON ghi ra stdout với mức cho trước. Handler được
