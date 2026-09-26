@@ -51,7 +51,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `build(app): pnpm workspace, package.json gốc pin pnpm@11.18.0 và script chạy theo filter [P0-T01b]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T02** `deploy/docker-compose.yml`: PG core (5432), PG analytics (5433), MongoDB, Redis, otel-collector, Prometheus, Grafana, Tempo/Jaeger
+- [x] **P0-T02** `deploy/docker-compose.yml`: PG core (5432), PG analytics (5433), MongoDB, Redis, otel-collector, Prometheus, Grafana, Tempo/Jaeger
+  - [x] 1. Test case: P0-T02-TC01..TC25 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `build(deploy): docker compose hạ tầng local PG core/analytics, MongoDB, Redis, otel-collector, Prometheus, Tempo, Grafana với healthcheck thật [P0-T02]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T03** Cấu hình goose, thư mục `com/tm/server/db/core/migrations`, `com/tm/server/db/analytics/migrations`, migration rỗng đầu tiên
 - [ ] **P0-T04** GitHub Actions chạy theo đường dẫn thay đổi: `com/tm/server/**` → `golangci-lint` + `bazel test` target bị ảnh hưởng; `com/tm/app/**` → `pnpm --filter "...[origin/main]" lint test build` `[G14]`
 - [ ] **P0-T05** Makefile / script: `make up`, `make migrate`, `make test`

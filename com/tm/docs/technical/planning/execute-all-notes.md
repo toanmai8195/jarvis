@@ -21,3 +21,12 @@ Việc ngoài phạm vi phát hiện trong lúc chạy execute-all, để báo c
 - P0-T04 (CI): chạy `pnpm install --frozen-lockfile` **trước** mọi script. pnpm 11 tự `install` (không frozen) trước khi `run` nếu `package.json` lệch deps, nên lockfile có thể bị viết lại âm thầm. Nên thêm `git diff --exit-code com/tm/app/pnpm-lock.yaml` sau bước chạy script.
 - P0-T04: `...[origin/main]` cần `fetch-depth: 0` (hoặc fetch `origin/main`) trong `actions/checkout`, nếu không pnpm không so được thay đổi. Filter không khớp package nào → exit 0 (không dùng `--fail-if-no-match`).
 - Khi chỉ `package.json` gốc / `pnpm-workspace.yaml` / lockfile đổi, `--filter '!snaptix-app'` làm CI không chạy package nào. P0-T04 cân nhắc chạy toàn bộ (`pnpm lint && pnpm test && pnpm build`) trong trường hợp này.
+
+## P0-T02
+
+- **Cần người dùng (không chặn)**: Docker Desktop trên máy dev treo khi bind mount thư mục trong `~/Documents` (repo nằm ở `~/Documents/code/jarvis`), macOS chưa cấp quyền Files and Folders → Documents (TCC). Treo xong thì mọi `docker run` sau đó cũng treo cho tới khi `docker desktop restart`. P0-T02 né bằng cách COPY cấu hình vào image build local (không bind mount). Task sau nếu mount mã nguồn/migration vào container (P0-T03 goose trong container, P0-T05 `make migrate`...) sẽ gặp lại lỗi này. Nên cấp quyền, hoặc chạy goose trên host.
+- MongoDB 8.x không chạy trên kernel Docker Desktop hiện tại (7.0.12, ≥ 6.19, SERVER-121912). Compose đặt `GLIBC_TUNABLES=glibc.pthread.rseq=1` cho `mongodb`. Khi nâng image mongo, thử bỏ biến này.
+- P0-T04 (CI) / P0-T05 (Makefile): gọi `bash scripts/check-compose_test.sh` và `bash scripts/check-compose.sh` (cần `docker compose` + `jq`). `make up` nên là `docker compose -f deploy/docker-compose.yml up -d --wait` (tự build image observability, `pull_policy: build`).
+- P0-T06 (dashboard): thêm `deploy/observability/grafana/provisioning/dashboards/` (provider + JSON). Image grafana COPY cả thư mục `provisioning`, nên chỉ cần `up -d --wait` là có. Datasource uid cố định: `prometheus`, `tempo`.
+- P0-T07+: target scrape của core thêm vào `deploy/observability/prometheus/prometheus.yml` (từ container gọi host qua `host.docker.internal:8080`; trên Linux cần `extra_hosts: host.docker.internal:host-gateway` cho service `prometheus`).
+- Tempo chưa bật `metrics_generator` (service graph/span metrics). Nếu phase sau cần, cấu hình `metrics_generator` + remote write vào Prometheus (`--web.enable-remote-write-receiver`).

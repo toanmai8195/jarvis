@@ -29,6 +29,7 @@ handbook/
 | P0-T01 | Khởi tạo cấu trúc `com/tm/{server,app,docs}`, `deploy/`, `loadtest/` | [phase-0/P0-T01.md](phase-0/P0-T01.md) |
 | P0-T01a | `com/tm/server` Bazel workspace (bzlmod, Gazelle, một `go.mod`, macro `com_tm_go_image`) | [phase-0/P0-T01a.md](phase-0/P0-T01a.md) |
 | P0-T01b | `com/tm/app` pnpm workspace (`pnpm-workspace.yaml`, `package.json` gốc, script chạy theo filter) | [phase-0/P0-T01b.md](phase-0/P0-T01b.md) |
+| P0-T02 | `deploy/docker-compose.yml`: PG core/analytics, MongoDB, Redis, otel-collector, Prometheus, Tempo, Grafana | [phase-0/P0-T02.md](phase-0/P0-T02.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -47,6 +48,13 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `node/pnpm` | P0-T01b | Script gốc `pnpm --recursive --if-present`, `dev` thêm `--parallel` | [P0-T01b.md](phase-0/P0-T01b.md#script-gốc-pnpm---recursive---if-present-dev-thêm---parallel) |
 | `node/pnpm`, `ci` | P0-T01b | `pnpm ... lint test build` chỉ chạy `lint`: dùng `run '/regex/'` | [P0-T01b.md](phase-0/P0-T01b.md#pnpm--lint-test-build-chỉ-chạy-lint-dùng-run-regex) |
 | `node/pnpm`, `ci` | P0-T01b | pnpm 11 tự cài lại deps trước khi chạy script | [P0-T01b.md](phase-0/P0-T01b.md#pnpm-11-tự-cài-lại-deps-trước-khi-chạy-script) |
+| `docker/compose`, `docker/healthcheck`, `otel/collector` | P0-T02 | Healthcheck thật cho từng image, kể cả image distroless | [P0-T02.md](phase-0/P0-T02.md#healthcheck-thật-cho-từng-image-kể-cả-image-distroless) |
+| `observability/tempo` | P0-T02 | Chọn Tempo 3.0.3 thay vì 2.10.x | [P0-T02.md](phase-0/P0-T02.md#chọn-tempo-303-thay-vì-210x) |
+| `observability/prometheus`, `otel/collector` | P0-T02 | Metric vào Prometheus bằng OTLP push, không scrape exporter | [P0-T02.md](phase-0/P0-T02.md#metric-vào-prometheus-bằng-otlp-push-không-scrape-exporter) |
+| `docker/desktop`, `docker/compose`, `macos` | P0-T02 | Không bind mount từ `~/Documents`: bake cấu hình vào image local | [P0-T02.md](phase-0/P0-T02.md#không-bind-mount-từ-documents-bake-cấu-hình-vào-image-local) |
+| `mongo/ops`, `docker` | P0-T02 | MongoDB 8.x không khởi động trên kernel ≥ 6.19: `GLIBC_TUNABLES=glibc.pthread.rseq=1` | [P0-T02.md](phase-0/P0-T02.md#mongodb-8x-không-khởi-động-trên-kernel--619-glibc_tunablesglibcpthreadrseq1) |
+| `pg/ops`, `docker` | P0-T02 | PostgreSQL 18: volume mount ở `/var/lib/postgresql`, không phải `.../data` | [P0-T02.md](phase-0/P0-T02.md#postgresql-18-volume-mount-ở-varlibpostgresql-không-phải-data) |
+| `bash`, `testing`, `docker/compose` | P0-T02 | Script kiểm tĩnh compose: pin image + healthcheck không giả | [P0-T02.md](phase-0/P0-T02.md#script-kiểm-tĩnh-compose-pin-image--healthcheck-không-giả) |
 
 ## Mẫu một file
 

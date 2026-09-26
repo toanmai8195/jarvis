@@ -94,3 +94,4 @@ Máy dev: Docker 8 GB RAM / 8 CPU, k6 chạy cùng máy. Cột "Nghiệm thu má
 - **Logging**: JSON có cấu trúc, luôn kèm `trace_id`, `user_id`, `request_id`.
 - **Dashboard**: Grafana (datasource Prometheus + Tempo provision sẵn).
 - **Luồng local**: app → OTLP (4317/4318) → otel-collector → Tempo (trace) / Prometheus (metric) → Grafana. Cấu hình trong `deploy/observability/`.
+  Metric vào Prometheus bằng OTLP push: collector đẩy tới `/api/v1/otlp` của Prometheus (cờ `--web.enable-otlp-receiver`), không qua exporter để scrape. Prometheus chỉ scrape chính nó, self-telemetry của collector (:8888) và `/metrics` của service (từ P0-T07).

@@ -4,7 +4,7 @@
 
 ## Yêu cầu
 
-- Docker + Docker Compose
+- Docker + Docker Compose v2 (đã kiểm với Docker 29.8, Compose v5.5). macOS: nếu repo nằm trong `~/Documents`, cấp quyền cho Docker Desktop ở System Settings → Privacy & Security → Files and Folders (hạ tầng không bind mount file từ repo nên không cần, nhưng container mount mã nguồn sẽ treo nếu thiếu quyền)
 - Go 1.27.1+ (theo `go` trong `com/tm/server/go.mod`; Bazel tự tải đúng SDK này), Bazelisk (đọc phiên bản Bazel từ `.bazelversion`)
 - Node.js 22+ và pnpm (bất kỳ bản nào ≥ 9.7; trong `com/tm/app` pnpm tự chuyển sang bản pin ở `packageManager` = `pnpm@11.18.0` — kiểm bằng `pnpm -v`)
 - Công cụ: `goose`, `sqlc`
@@ -15,6 +15,7 @@
 git clone <repo-url> snaptix && cd snaptix
 
 # 1. Hạ tầng: postgres (core + analytics), mongodb, redis, observability
+#    Không cần deploy/.env (mặc định khớp bảng dưới). Chi tiết: deploy/README.md
 docker compose -f deploy/docker-compose.yml up -d --wait
 
 # 2. Migration
@@ -37,6 +38,8 @@ pnpm --filter bff dev            # chỉ một app
 ## Biến môi trường
 
 Sao chép `.env.example` thành `.env` ở mỗi app/service.
+
+Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/.env`: mọi biến có mặc định. Muốn đổi cổng/mật khẩu thì `cp deploy/.env.example deploy/.env` rồi sửa (biến: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_CORE_DB`, `POSTGRES_ANALYTICS_DB`, `POSTGRES_CORE_PORT`, `POSTGRES_ANALYTICS_PORT`, `MONGODB_PORT`, `REDIS_PORT`, `OTLP_GRPC_PORT`, `OTLP_HTTP_PORT`, `PROMETHEUS_PORT`, `TEMPO_PORT`, `GRAFANA_PORT`).
 
 | Biến | Dùng bởi | Ví dụ |
 |---|---|---|
