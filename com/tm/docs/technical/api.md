@@ -17,6 +17,7 @@ Hợp đồng chi tiết: `com/tm/app/api/bff.openapi.yaml`, `com/tm/server/api/
 | Phân trang | Cursor: `?limit=20&cursor=...` → `{ "data": [], "next_cursor": "..." }` |
 | Idempotency | Header `Idempotency-Key` (UUID) **bắt buộc** với các lệnh tạo hold, booking, topup, cancel, refund |
 | Trace | Header `traceparent` |
+| Request ID | Header `X-Request-ID`: client gửi giá trị khớp `^[A-Za-z0-9._:-]{1,128}$` thì được giữ nguyên, thiếu hoặc không hợp lệ thì server sinh UUID v7 (không trả 400). Mọi response (kể cả lỗi) có header này; log của request mang cùng `request_id` |
 
 ### Lỗi
 
@@ -42,6 +43,7 @@ Hợp đồng chi tiết: `com/tm/app/api/bff.openapi.yaml`, `com/tm/server/api/
 | 422 | `INSUFFICIENT_BALANCE` | Số dư không đủ |
 | 422 | `CANCEL_NOT_ALLOWED` | Quá hạn huỷ |
 | 429 | `RATE_LIMITED` | Vượt giới hạn |
+| 500 | `INTERNAL` | Lỗi hệ thống (vd panic trong handler). `message` chung chung, không chứa chi tiết nội bộ; tra log theo `X-Request-ID` |
 
 ## Public API (BFF)
 

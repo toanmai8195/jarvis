@@ -1,5 +1,6 @@
-// Package httpx dựng router HTTP của core: health check, readiness, metrics.
-// Route nghiệp vụ và middleware được gắn vào đây ở các task sau.
+// Package httpx dựng router HTTP của core: middleware (request ID, OTel,
+// access log, recover), health check, readiness, metrics runtime.
+// Route nghiệp vụ được gắn vào đây ở các task sau.
 package httpx
 
 import (
@@ -11,6 +12,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // ReadyTimeout là thời gian tối đa /readyz chờ ping DB. PG treo mạng thì
@@ -23,19 +28,91 @@ type pinger interface {
 	Ping(ctx context.Context) error
 }
 
-// NewRouter trả handler với GET /healthz, GET /readyz, GET /metrics.
-// Route lạ → 404, method khác GET trên route có sẵn → 405 (mặc định của chi).
-func NewRouter(log *slog.Logger, db pinger) http.Handler {
-	return newRouter(log, db, ReadyTimeout)
+// Option tuỳ chỉnh NewRouter.
+type Option func(*options)
+
+type options struct {
+	tp           trace.TracerProvider
+	mp           metric.MeterProvider
+	prop         propagation.TextMapPropagator
+	readyTimeout time.Duration
+	// extraRoutes chỉ dùng trong test: gắn route tham số / handler panic vào
+	// cùng router (cùng chuỗi middleware) với code chạy thật.
+	extraRoutes func(chi.Router)
 }
 
-func newRouter(log *slog.Logger, db pinger, readyTimeout time.Duration) http.Handler {
+// WithTracerProvider đặt TracerProvider cho span HTTP server.
+// Mặc định otel.GetTracerProvider().
+func WithTracerProvider(tp trace.TracerProvider) Option {
+	return func(o *options) { o.tp = tp }
+}
+
+// WithMeterProvider đặt MeterProvider cho metric http.server.request.duration.
+// Mặc định otel.GetMeterProvider().
+func WithMeterProvider(mp metric.MeterProvider) Option {
+	return func(o *options) { o.mp = mp }
+}
+
+// WithPropagator đặt propagator đọc traceparent từ header request.
+// Mặc định otel.GetTextMapPropagator().
+func WithPropagator(p propagation.TextMapPropagator) Option {
+	return func(o *options) { o.prop = p }
+}
+
+// withReadyTimeout đổi timeout của /readyz (test).
+func withReadyTimeout(d time.Duration) Option {
+	return func(o *options) { o.readyTimeout = d }
+}
+
+// withRoutes gắn thêm route (test) — code chạy thật không có route debug.
+func withRoutes(f func(chi.Router)) Option {
+	return func(o *options) { o.extraRoutes = f }
+}
+
+// NewRouter trả handler của core: chuỗi middleware + GET /healthz, GET /readyz,
+// GET /metrics. Route lạ → 404, method khác GET trên route có sẵn → 405
+// (mặc định của chi).
+//
+// Thứ tự middleware (ngoài → trong):
+//
+//	requestID → telemetry (span, metric) → accessLog → recoverer → route
+//
+// recoverer nằm TRONG accessLog/telemetry để panic được ghi thành 500 ở access
+// log, span và metric; requestID ngoài cùng để mọi response (kể cả 404/405/500)
+// có X-Request-ID. Middleware gắn bằng r.Use nên ctx đã có chi.RouteContext và
+// đọc được route pattern sau khi handler chạy.
+func NewRouter(log *slog.Logger, db pinger, opts ...Option) http.Handler {
+	o := options{
+		tp:           otel.GetTracerProvider(),
+		mp:           otel.GetMeterProvider(),
+		prop:         otel.GetTextMapPropagator(),
+		readyTimeout: ReadyTimeout,
+	}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	log = withContextLogging(log)
+
 	r := chi.NewRouter()
+	r.Use(
+		requestID,
+		telemetry(log, o.tp, o.mp, o.prop),
+		accessLog(log),
+		recoverer(log),
+	)
 	r.Get("/healthz", healthz)
-	r.Get("/readyz", readyz(log, db, readyTimeout))
+	r.Get("/readyz", readyz(log, db, o.readyTimeout))
 	// r.Method thay vì r.Handle: r.Handle nhận mọi method, POST sẽ không ra 405.
 	r.Method(http.MethodGet, "/metrics", promhttp.Handler())
+	if o.extraRoutes != nil {
+		o.extraRoutes(r)
+	}
 	return r
+}
+
+// newRouter giữ chữ ký cũ cho test P0-T07.
+func newRouter(log *slog.Logger, db pinger, readyTimeout time.Duration) http.Handler {
+	return NewRouter(log, db, withReadyTimeout(readyTimeout))
 }
 
 // healthz: process còn sống. Không chạm DB.

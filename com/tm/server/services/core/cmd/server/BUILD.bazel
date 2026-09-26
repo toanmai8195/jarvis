@@ -10,6 +10,7 @@ go_library(
         "//services/core/internal/config",
         "//services/core/internal/httpx",
         "@com_github_jackc_pgx_v5//pgxpool",
+        "@io_opentelemetry_go_otel//:otel",
     ],
 )
 

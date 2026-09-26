@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel"
 
 	"github.com/toanmai8195/snaptix/com/tm/server/services/core/internal/config"
 	"github.com/toanmai8195/snaptix/com/tm/server/services/core/internal/httpx"
@@ -38,9 +39,16 @@ func main() {
 		"db_name", cfg.DB.ConnConfig.Database,
 		"max_conns", cfg.DB.MaxConns)
 
+	// Provider/propagator global hiện là no-op (delegate); P0-T10 cấu hình bản
+	// thật trong pkg/otelx và delegate tự chuyển sang bản đó.
+	handler := httpx.NewRouter(log, pool,
+		httpx.WithTracerProvider(otel.GetTracerProvider()),
+		httpx.WithMeterProvider(otel.GetMeterProvider()),
+		httpx.WithPropagator(otel.GetTextMapPropagator()),
+	)
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           httpx.NewRouter(log, pool),
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	log.Info("core đang lắng nghe", "addr", cfg.HTTPAddr)
@@ -52,7 +60,8 @@ func main() {
 	}
 }
 
-// newLogger trả logger slog JSON ghi ra stdout với mức cho trước.
+// newLogger trả logger slog JSON ghi ra stdout với mức cho trước. Handler được
+// bọc để log *Context trong request tự có request_id, trace_id.
 func newLogger(level slog.Level) *slog.Logger {
-	return slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level}))
+	return slog.New(httpx.NewLogHandler(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})))
 }

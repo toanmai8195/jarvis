@@ -35,6 +35,7 @@ handbook/
 | P0-T05 | Makefile / script: `make up`, `make migrate`, `make test` | [phase-0/P0-T05.md](phase-0/P0-T05.md) |
 | P0-T06 | Dashboard Grafana cơ bản: RED metrics cho mỗi service | [phase-0/P0-T06.md](phase-0/P0-T06.md) |
 | P0-T07 | Skeleton `services/core`: config env, slog JSON, chi, pgxpool, `/healthz`, `/readyz`, `/metrics` | [phase-0/P0-T07.md](phase-0/P0-T07.md) |
+| P0-T08 | Middleware: request ID, recover, access log, OTel HTTP | [phase-0/P0-T08.md](phase-0/P0-T08.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -81,6 +82,13 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `go/http`, `go/chi` | P0-T07 | chi: `r.Method(GET, ...)` cho `/metrics` để có 405 | [P0-T07.md](phase-0/P0-T07.md#chi-rmethodget--cho-metrics-để-có-405) |
 | `observability/prometheus`, `docker/compose` | P0-T07 | `/metrics` bằng `promhttp` + Prometheus scrape service trên host | [P0-T07.md](phase-0/P0-T07.md#metrics-bằng-promhttp--prometheus-scrape-service-trên-host) |
 | `bazel`, `bazel/bzlmod`, `go/modules` | P0-T07 | Thêm dependency Go vào workspace Bazel | [P0-T07.md](phase-0/P0-T07.md#thêm-dependency-go-vào-workspace-bazel) |
+| `go/http`, `go/chi`, `go/middleware` | P0-T08 | Thứ tự middleware: requestID → telemetry → accessLog → recoverer, tất cả qua `r.Use` | [P0-T08.md](phase-0/P0-T08.md#thứ-tự-middleware-requestid--telemetry--accesslog--recoverer-tất-cả-qua-ruse) |
+| `go/http`, `go/context`, `go/stdlib`, `security` | P0-T08 | Request ID: nhận nếu hợp lệ, không thì sinh UUID v7 bằng package `uuid` của Go 1.27 | [P0-T08.md](phase-0/P0-T08.md#request-id-nhận-nếu-hợp-lệ-không-thì-sinh-uuid-v7-bằng-package-uuid-của-go-127) |
+| `go/slog`, `go/context`, `observability/logging` | P0-T08 | Log theo context: bọc `slog.Handler` để mọi `*Context` có `request_id`, `trace_id` | [P0-T08.md](phase-0/P0-T08.md#log-theo-context-bọc-sloghandler-để-mọi-context-có-request_id-trace_id) |
+| `go/http`, `observability/logging`, `security` | P0-T08 | Access log: một dòng mỗi request, không log header và query | [P0-T08.md](phase-0/P0-T08.md#access-log-một-dòng-mỗi-request-không-log-header-và-query) |
+| `go/panic`, `go/http`, `security` | P0-T08 | Recover: 500 `INTERNAL` không lộ chi tiết, re-panic `http.ErrAbortHandler`, không ghi header hai lần | [P0-T08.md](phase-0/P0-T08.md#recover-500-internal-không-lộ-chi-tiết-re-panic-httperraborthandler-không-ghi-header-hai-lần) |
+| `otel/trace`, `otel/metric`, `otel/semconv`, `bazel` | P0-T08 | OTel HTTP tự viết bằng API: span server + `http.server.request.duration`, không kéo SDK vào binary | [P0-T08.md](phase-0/P0-T08.md#otel-http-tự-viết-bằng-api-span-server--httpserverrequestduration-không-kéo-sdk-vào-binary) |
+| `observability/prometheus`, `otel/metric` | P0-T08 | Chọn một nguồn cho metric RED: chỉ OTLP, `/metrics` chỉ còn runtime Go | [P0-T08.md](phase-0/P0-T08.md#chọn-một-nguồn-cho-metric-red-chỉ-otlp-metrics-chỉ-còn-runtime-go) |
 
 ## Mẫu một file
 

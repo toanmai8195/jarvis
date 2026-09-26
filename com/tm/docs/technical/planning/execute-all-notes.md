@@ -79,3 +79,12 @@ Ngoài phạm vi (ghi lại, không làm):
 - Core chưa có graceful shutdown: `defer pool.Close()` không chạy khi process bị SIGTERM. Đúng phạm vi P0-T09.
 - `scripts/migrate.sh` mặc định `CORE_DATABASE_URL` không có `sslmode=disable` (pgx/goose thử TLS rồi fallback). `.env.example` của core dùng `?sslmode=disable`. Không lỗi, chỉ lệch nhỏ; có thể thống nhất khi đóng phase.
 - TC18 chạy ngay sau TC17 (pause/unpause PG): `dc up -d --wait postgres-core` báo `container ... is unhealthy` một lần vì healthcheck của PG còn fail từ lúc pause. Core vẫn trả 200. Đã chạy lại TC18 khi PG healthy: pass. Không phải lỗi của core.
+
+## P0-T08
+
+- **Quyết định nguồn metric RED** (trả lời ghi chú P0-T07): metric RED (`http.server.request.duration`) của core chỉ đi qua OTel/OTLP (`job="snaptix/core"` từ P0-T10), khớp dashboard P0-T06. Không đăng ký histogram `prometheus/client_golang` cho request; `/metrics` (job `core`) chỉ còn metric runtime Go/process. Đã ghi vào `architecture.md` (Observability) và handbook P0-T08. Trước P0-T10, MeterProvider global là no-op nên RED của core **chưa** có trên Prometheus — P0-T10 kiểm.
+- P0-T10: `main` đã truyền `otel.GetTracerProvider()`/`GetMeterProvider()`/`GetTextMapPropagator()` vào `httpx.NewRouter`; chỉ cần gọi `otel.SetTracerProvider/SetMeterProvider/SetTextMapPropagator(...)` trong `pkg/otelx` (bản global trả về là delegate, tự chuyển sang bản thật kể cả khi `Set` sau lúc dựng router; nên gọi trước cho rõ ràng). Khi đó P0-AT06 (`trace_id` trong log chạy thật) và phần core của P0-AT07 mới kiểm được.
+- Middleware OTel tự viết bằng OTel API (không dùng `otelhttp`): tên span/`http.route` đặt sau khi chi định tuyến. Nếu P0-T12 cần span client HTTP cho core (gọi ra ngoài) thì cân nhắc otelhttp transport khi đó.
+- Không có access log cho request bị huỷ bằng `panic(http.ErrAbortHandler)` (access log ghi sau `next`). Chấp nhận; ghi trong handbook.
+- 404/405 của chi vẫn trả body text mặc định (`404 page not found`), chưa theo format lỗi JSON của api.md — thuộc task có route nghiệp vụ (map lỗi → HTTP).
+- Quy trình: agent triển khai có một lần sửa `services/core/internal/httpx/otel.go` bằng python qua Bash (đổi chữ ký `telemetry` bỏ trả `error`, thêm import `log/slog`) thay vì Edit — vi phạm quy tắc. Nội dung đã được kiểm lại bằng gofmt/vet/test/lint/bazel ở bước 4.

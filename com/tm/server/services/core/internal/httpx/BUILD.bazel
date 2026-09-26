@@ -2,17 +2,46 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "httpx",
-    srcs = ["router.go"],
+    srcs = [
+        "logging.go",
+        "otel.go",
+        "recover.go",
+        "requestid.go",
+        "router.go",
+    ],
     importpath = "github.com/toanmai8195/snaptix/com/tm/server/services/core/internal/httpx",
     visibility = ["//services/core:__subpackages__"],
     deps = [
         "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_go_chi_chi_v5//middleware",
         "@com_github_prometheus_client_golang//prometheus/promhttp",
+        "@io_opentelemetry_go_otel//:otel",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//codes",
+        "@io_opentelemetry_go_otel//propagation",
+        "@io_opentelemetry_go_otel//semconv/v1.40.0:v1_40_0",
+        "@io_opentelemetry_go_otel//semconv/v1.40.0/httpconv",
+        "@io_opentelemetry_go_otel_metric//:metric",
+        "@io_opentelemetry_go_otel_trace//:trace",
     ],
 )
 
 go_test(
     name = "httpx_test",
-    srcs = ["router_test.go"],
+    srcs = [
+        "middleware_test.go",
+        "router_test.go",
+    ],
     embed = [":httpx"],
+    deps = [
+        "@com_github_go_chi_chi_v5//:chi",
+        "@io_opentelemetry_go_otel//attribute",
+        "@io_opentelemetry_go_otel//codes",
+        "@io_opentelemetry_go_otel//propagation",
+        "@io_opentelemetry_go_otel_sdk//trace",
+        "@io_opentelemetry_go_otel_sdk//trace/tracetest",
+        "@io_opentelemetry_go_otel_sdk_metric//:metric",
+        "@io_opentelemetry_go_otel_sdk_metric//metricdata",
+        "@io_opentelemetry_go_otel_trace//:trace",
+    ],
 )
