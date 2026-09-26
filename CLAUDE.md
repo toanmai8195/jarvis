@@ -104,6 +104,19 @@ Fail → sửa code (không sửa/skip test cho pass) → chạy lại đến kh
 
 ---
 
+## Chế độ execute-all
+
+Người dùng đã cho phép (2026-09-26) chạy tự động toàn bộ task đến hết phase 8 bằng skill `execute-all`. Chỉ áp dụng khi `python3 .claude/scripts/planning.py auto status` là `running`; ngoài chế độ này quy trình trên giữ nguyên. Ngoại lệ duy nhất:
+
+- **Bước 1**: test case do một agent riêng sinh ra, rồi một agent **khác, độc lập** review; review ghi `APPROVED` trong mục `## Review` của `test-cases.md` thay cho người dùng duyệt. Ghi `(review agent, execute-all)` vào dòng bước 1.
+- **Bước 6**: tự commit mỗi task (không hỏi), `Push: không`. Chỉ push ngay sau commit đóng phase `docs(planning): đóng phase N [phase-N]`; không force push, không `--no-verify`, không amend.
+- **Đóng phase**: agent tự chạy test nghiệm thu, DoD, checklist đóng phase — trừ `lessons-learned.md` (người dùng tự viết sau). Test nghiệm thu không thể chạy tự động → ⚠️ kèm lý do ở mục `## Miễn trừ` cuối `acceptance-tests.md`.
+- **Việc ngoài phạm vi**: không hỏi giữa chừng, ghi vào `planning/execute-all-notes.md` để báo cáo cuối.
+
+Enforce bằng hook: `guard` (Edit/Write), `guard-bash` (commit/push), `auto stop-hook` (không dừng khi còn việc). Bị chặn thật sự (cần người) → `auto block "<lý do>"` và dừng.
+
+---
+
 ## Handbook
 
 `com/tm/docs/technical/handbook/` — ghi chú kỹ thuật **theo task**, do agent viết ở bước 5, để người dùng ôn lại kiến thức đã áp dụng.
@@ -126,10 +139,10 @@ Fail → sửa code (không sửa/skip test cho pass) → chạy lại đến kh
 ## Không được
 
 - Bỏ qua bước 0 hoặc làm task khi task trước chưa đủ checklist + commit mà người dùng chưa cho phép.
-- Code trước khi test case được duyệt.
+- Code trước khi test case được duyệt (bởi người dùng, hoặc review agent ở chế độ execute-all).
 - Đánh `[x]` / ✅ khi chưa chạy hoặc còn test fail.
 - Sửa, xoá, `skip` test để cho pass; sửa test case đã duyệt mà không xin duyệt lại.
-- Commit hoặc push khi người dùng chưa đồng ý.
+- Commit hoặc push khi người dùng chưa đồng ý (trừ chế độ execute-all ở trên).
 - Viết Go theo kiểu Java (`service/`, `repository/`, `IFoo`/`FooImpl`, DI framework, `utils/`).
 - Dùng số thực cho tiền ở bất kỳ tầng nào.
 

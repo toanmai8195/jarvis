@@ -8,7 +8,7 @@ Hoàn thiện BFF (Fastify) với đăng nhập Google, session, gọi core tin 
 
 ## Phạm vi
 
-- **Trong**: OAuth Google, session MongoDB, CSRF, đồng bộ user sang core, core client, API public tìm chuyến, web client (trang chủ, kết quả, chi tiết chuyến, trang cá nhân).
+- **Trong**: OAuth Google (local/test dùng mock OIDC provider — [ADR-0002](../../adr/0002-mock-google-oauth.md)), session MongoDB, CSRF, đồng bộ user sang core, core client, API public tìm chuyến, web client (trang chủ, kết quả, chi tiết chuyến, trang cá nhân).
 - **Ngoài**: đặt vé, ví, admin.
 
 ## Workstream

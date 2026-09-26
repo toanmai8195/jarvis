@@ -170,3 +170,6 @@ __pycache__/
 .claude/settings.local.json
 # k6 kết quả chạy tạm (kết quả chính thức lưu có chủ đích trong loadtest/results)
 loadtest/*.tmp.json
+
+# Claude Code execute-all runtime state
+.claude/state/

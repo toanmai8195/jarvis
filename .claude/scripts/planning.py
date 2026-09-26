@@ -8,8 +8,12 @@ Dùng bởi các skill task-detail, phase-detail, sumup.
     planning.py sumup              # tổng kết toàn dự án
     planning.py validate [TASK_ID] # kiểm tra bước 0, exit 1 nếu chưa đạt
     planning.py step [TASK_ID]     # task cần làm + bước tiếp theo (cho skill execute-task)
-    planning.py guard              # PreToolUse hook: đọc JSON từ stdin, chặn sửa code sai quy trình
+    planning.py guard              # PreToolUse hook (Edit/Write): chặn sửa code sai quy trình
+    planning.py guard-bash         # PreToolUse hook (Bash): chặn commit/push sai quy trình
+    planning.py mark ...           # thao tác checklist (xem cmd_mark)
+    planning.py auto ...           # chế độ execute-all (xem cmd_auto)
 """
+import json
 import re
 import subprocess
 import sys
@@ -440,12 +444,17 @@ def cmd_mark(argv):
     """Thao tác checklist của task (dùng khi làm task, tránh sửa tay):
 
     mark start <ID> <mô tả test case>      thêm checklist con 6 bước (bước 0)
-    mark step <ID> <n> [ghi chú bước 6]    tick bước n; n=5 tick cả dòng task
+    mark step <ID> <n> [nội dung mới]      tick bước n (có nội dung → thay text bước); n=5 tick cả dòng task
     mark tc <ID>                           đánh ✅ mọi test case của task
+    mark phase <N> <⬜|🟨|✅>               đổi trạng thái phase trong planning/README.md
     """
     if len(argv) < 2:
         sys.exit(cmd_mark.__doc__)
     action, tid = argv[0], argv[1]
+    if action == "phase":
+        set_phase_status(int(tid), argv[2])
+        print(f"Phase {tid}: {argv[2]}")
+        return
     t, pdir = _task_file(tid)
     readme = pdir / "README.md"
     text = readme.read_text()
@@ -470,7 +479,7 @@ def cmd_mark(argv):
         step_re = re.compile(rf"^(\s+- )\[ \]( {n}\. )(.*)$", re.M)
         if not step_re.search(seg):
             sys.exit(f"Bước {n} của {tid} không có hoặc đã tick")
-        if n == 6 and note:
+        if note:
             seg = step_re.sub(lambda mm: f"{mm.group(1)}[x]{mm.group(2)}{note}", seg, count=1)
         else:
             seg = step_re.sub(r"\1[x]\2\3", seg, count=1)
@@ -489,6 +498,14 @@ def cmd_mark(argv):
     print(f"{tid}: {action} {' '.join(argv[2:3])} ok")
 
 
+def set_phase_status(n, emoji):
+    f = PLANNING / "README.md"
+    text, k = re.subn(rf"^(\| \[{n}\]\([^)]*\) \| .+ \| )\S+( \|)$", rf"\g<1>{emoji}\2", f.read_text(), count=1, flags=re.M)
+    if not k:
+        sys.exit(f"Không tìm thấy phase {n} trong planning/README.md")
+    f.write_text(text)
+
+
 GUARDED = ("com/tm/server/", "com/tm/app/")
 
 
@@ -498,7 +515,6 @@ def cmd_guard():
     Đọc JSON hook từ stdin. Chỉ áp dụng cho file trong com/tm/server và com/tm/app.
     Không kiểm tra working tree sạch (khi đang làm task, tree luôn có thay đổi của chính task).
     """
-    import json
     try:
         payload = json.load(sys.stdin)
     except Exception:
@@ -536,9 +552,235 @@ def cmd_guard():
     sys.exit(0)
 
 
+# ---------------------------------------------------------------------------
+# execute-all: chạy tự động toàn bộ task (xem .claude/skills/execute-all)
+# ---------------------------------------------------------------------------
+
+STATE = ROOT / ".claude/state/execute-all.json"
+TASK_TAG_RE = re.compile(r"\[(P\d+-T\d+[a-z]?)\]")
+PHASE_TAG_RE = re.compile(r"\[phase-(\d+)\]")
+WAIVED = "⚠️"
+MAX_ATTEMPTS = 5      # số lần spawn subagent cho cùng một (task, hành động, bước) trước khi dừng
+MAX_IDLE_STOPS = 3    # số lần Stop không tiến triển trước khi cho dừng hẳn
+
+
+def load_state():
+    try:
+        return json.loads(STATE.read_text())
+    except Exception:
+        return {}
+
+
+def save_state(s):
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(json.dumps(s, ensure_ascii=False, indent=2))
+
+
+def auto_running():
+    return load_state().get("status") == "running"
+
+
+def deny(reason):
+    print(json.dumps({"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": "deny",
+                                             "permissionDecisionReason": f"[snaptix guard] {reason}"}}, ensure_ascii=False))
+    sys.exit(0)
+
+
+def close_problems(phases, n):
+    """Điều kiện đóng phase n ở chế độ execute-all. Trả về danh sách vấn đề (rỗng = đóng được)."""
+    p = next((p for p in phases if p["n"] == n), None)
+    if not p:
+        return [f"Không có phase {n}"]
+    out = []
+    for t in p["tasks"]:
+        if not (t["done"] and committed(t) and commits_for(t["id"])):
+            out.append(f"Task {t['id']} chưa xong hoặc chưa commit")
+    out += [f"Test case {tc['id']} chưa ✅ ({tc['status']})" for tc in p["task_tcs"] if tc["status"] not in DONE]
+    at_text = (PLANNING / p["dir"] / "acceptance-tests.md").read_text()
+    waiver = sections(at_text).get("Miễn trừ", [])
+    for at in p["ats"]:
+        if at["status"] in DONE:
+            continue
+        if at["status"] == WAIVED and any(at["id"] in l for l in waiver):
+            continue
+        out.append(f"Test nghiệm thu {at['id']} chưa ✅ và không có lý do ở mục '## Miễn trừ' ({at['status']})")
+    out += [f"DoD chưa [x]: {d['text']}" for d in p["dod"] if not d["done"]]
+    out += [f"Checklist đóng phase chưa [x]: {d['text']}" for d in p["closing"]
+            if not d["done"] and "lessons-learned" not in d["text"]]
+    return out
+
+
+def auto_next(state):
+    """Hành động tiếp theo của execute-all, suy ra từ planning + git (không tin state)."""
+    phases, tasks = load_all()
+    until = state.get("until_phase", 8)
+    scope = [t for t in tasks if t["phase"] <= until]
+    idx = current_index(scope)
+    cur_phase = scope[idx]["phase"] if idx < len(scope) else until + 1
+    for p in phases:
+        if p["n"] < cur_phase and p["n"] <= until and p["status"] not in DONE:
+            return {"action": "CLOSE_PHASE", "phase": p["n"], "problems": close_problems(phases, p["n"])}
+    ahead = git("rev-list", "--count", "@{u}..HEAD")
+    if PHASE_TAG_RE.search(git("log", "-1", "--format=%s")) and ahead.isdigit() and int(ahead) > 0:
+        return {"action": "PUSH", "phase": int(PHASE_TAG_RE.search(git("log", "-1", "--format=%s")).group(1))}
+    if idx >= len(scope):
+        return {"action": "DONE"} if state.get("final_verified") else {"action": "FINAL_VERIFY", "phase": until}
+    t = scope[idx]
+    phase = next(p for p in phases if p["n"] == t["phase"])
+    tc_file = PLANNING / phase["dir"] / "tasks" / t["id"] / "test-cases.md"
+    base = {"task": t["id"], "phase": t["phase"], "desc": t["desc"], "phase_status": phase["status"]}
+    if not t["steps"]:
+        full = tasks.index(t)
+        return {**base, "action": "START", "step": 0,
+                "problems": [text for ok, text in validate(phases, tasks, full) if not ok]}
+    step = next((s["n"] for s in sorted(t["steps"], key=lambda s: s["n"]) if not s["done"]), 6)
+    if step == 1:
+        return {**base, "action": "APPROVE_TC" if tc_file.exists() else "GEN_TC", "step": 1}
+    if step == 6:
+        return {**base, "action": "COMMIT", "step": 6}
+    return {**base, "action": "EXECUTE", "step": step}
+
+
+def sig(nxt):
+    return f"{nxt['action']}:{nxt.get('task', nxt.get('phase', ''))}:{nxt.get('step', '')}"
+
+
+def cmd_auto(argv):
+    """Chế độ execute-all:
+
+    auto start [UNTIL_PHASE]   bắt đầu / chạy tiếp (mặc định đến phase 8)
+    auto next                  hành động tiếp theo (ACTION: START|GEN_TC|APPROVE_TC|EXECUTE|COMMIT|CLOSE_PHASE|PUSH|FINAL_VERIFY|DONE|BLOCKED)
+    auto wait <nhãn>           gọi ngay trước khi spawn subagent rồi kết thúc lượt chờ; đếm số lần thử
+    auto close-check <N>       kiểm tra điều kiện đóng phase N (exit 1 nếu chưa đạt)
+    auto close <N>             đóng phase N (đặt ✅) nếu close-check đạt
+    auto block <lý do>         dừng execute-all vì bị chặn thật sự (cần người)
+    auto pause                 người dùng tạm dừng
+    auto done                  đánh dấu đã verify sản phẩm cuối, kết thúc
+    auto status                in state
+    auto stop-hook             Stop hook: không cho agent dừng khi execute-all còn việc
+    """
+    action = argv[0] if argv else "status"
+    rest = argv[1:]
+    s = load_state()
+    if action == "start":
+        s.update({"status": "running", "until_phase": int(rest[0]) if rest else s.get("until_phase", 8),
+                  "reason": None, "pending": None, "attempts": {}, "idle_stops": 0, "idle_sig": None})
+        s.setdefault("started_at", git("log", "-1", "--format=%cI"))
+        save_state(s)
+        action = "next"
+    if action == "next":
+        if s.get("status") != "running":
+            print(f"ACTION: BLOCKED\nSTATUS: {s.get('status', 'chưa start')}\nLÝ DO: {s.get('reason') or '-'}")
+            return
+        s["pending"] = None
+        save_state(s)
+        nxt = auto_next(s)
+        print(f"ACTION: {nxt['action']}")
+        for k in ("task", "step", "phase", "desc", "phase_status"):
+            if k in nxt:
+                print(f"{k.upper()}: {nxt[k]}")
+        for pr in nxt.get("problems", []):
+            print(f"PROBLEM: {pr}")
+        if "task" in nxt:
+            print()
+            cmd_step(nxt["task"])
+    elif action == "wait":
+        nxt = auto_next(s)
+        key = sig(nxt)
+        att = s.setdefault("attempts", {})
+        att[key] = att.get(key, 0) + 1
+        if att[key] > MAX_ATTEMPTS:
+            s.update({"status": "blocked", "reason": f"{key}: đã thử {MAX_ATTEMPTS} lần không qua"})
+            save_state(s)
+            print(f"BLOCKED: {s['reason']}")
+            sys.exit(1)
+        s["pending"] = " ".join(rest) or key
+        save_state(s)
+        print(f"WAIT {s['pending']} — lần thử {att[key]}/{MAX_ATTEMPTS} cho {key}")
+    elif action in ("close-check", "close"):
+        n = int(rest[0])
+        phases, _ = load_all()
+        probs = close_problems(phases, n)
+        if probs:
+            print(f"Phase {n} chưa đóng được:\n" + "\n".join(f"- {x}" for x in probs))
+            sys.exit(1)
+        if action == "close":
+            set_phase_status(n, "✅")
+            print(f"Phase {n} ✅ — commit: `docs(planning): đóng phase {n} [phase-{n}]` rồi push")
+        else:
+            print(f"Phase {n} đủ điều kiện đóng.")
+    elif action in ("block", "pause"):
+        s.update({"status": "blocked" if action == "block" else "paused", "reason": " ".join(rest) or action, "pending": None})
+        save_state(s)
+        print(f"execute-all: {s['status']} — {s['reason']}")
+    elif action == "done":
+        s.update({"status": "done", "final_verified": True, "pending": None})
+        save_state(s)
+        print("execute-all: done")
+    elif action == "stop-hook":
+        try:
+            json.load(sys.stdin)
+        except Exception:
+            pass
+        if s.get("status") != "running":
+            sys.exit(0)
+        if s.get("pending"):
+            s["pending"] = None
+            s["idle_stops"] = 0
+            save_state(s)
+            sys.exit(0)
+        nxt = auto_next(s)
+        if nxt["action"] == "DONE":
+            sys.exit(0)
+        key = sig(nxt)
+        s["idle_stops"] = s.get("idle_stops", 0) + 1 if s.get("idle_sig") == key else 1
+        s["idle_sig"] = key
+        if s["idle_stops"] > MAX_IDLE_STOPS:
+            s.update({"status": "blocked", "reason": f"Agent dừng {MAX_IDLE_STOPS} lần liền không tiến triển ở {key}"})
+            save_state(s)
+            sys.exit(0)
+        save_state(s)
+        print(json.dumps({"decision": "block", "reason": (
+            f"[execute-all] Còn việc: {key}. Chạy `python3 .claude/scripts/planning.py auto next` và làm tiếp theo "
+            "skill execute-all. Đang chờ subagent thì gọi `auto wait <nhãn>` trước khi kết thúc lượt. "
+            "Bị chặn thật sự (cần người) thì `auto block \"<lý do>\"` rồi dừng.")}, ensure_ascii=False))
+    else:
+        print(json.dumps(s, ensure_ascii=False, indent=2) if s else "execute-all: chưa start")
+
+
+def cmd_guard_bash():
+    """PreToolUse hook cho Bash: commit/push đúng quy trình (CLAUDE.md bước 6, chế độ execute-all)."""
+    try:
+        cmd = (json.load(sys.stdin).get("tool_input") or {}).get("command") or ""
+    except Exception:
+        sys.exit(0)
+    auto = auto_running()
+    if re.search(r"\bgit\b.*\bpush\b", cmd):
+        if re.search(r"\s(--force\S*|-f)\b|\s\+[\w/.-]+", cmd):
+            deny("Không force push.")
+        if auto and not PHASE_TAG_RE.search(git("log", "-1", "--format=%s")):
+            deny("execute-all chỉ push ngay sau commit đóng phase (message chứa [phase-N]).")
+    if re.search(r"\bgit\b.*\bcommit\b", cmd):
+        if "--no-verify" in cmd:
+            deny("Không bỏ qua git hook bằng --no-verify.")
+        if auto and "--amend" in cmd:
+            deny("execute-all không amend commit.")
+        tags, ptags = TASK_TAG_RE.findall(cmd), PHASE_TAG_RE.findall(cmd)
+        if auto and not tags and not ptags:
+            deny("Commit message phải chứa [<Task ID>] hoặc [phase-N].")
+        if tags:
+            _, tasks = load_all()
+            for tid in tags:
+                t = next((t for t in tasks if t["id"] == tid), None)
+                if t and not committed(t):
+                    deny(f"Đánh [x] bước 6 của {tid} (kèm commit message) trước khi commit.")
+    sys.exit(0)
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1] if len(sys.argv) > 1 else "sumup"
     arg = " ".join(sys.argv[2:]).strip()
     {"task": lambda: cmd_task(arg), "phase": lambda: cmd_phase(arg), "sumup": cmd_sumup,
      "validate": lambda: cmd_validate(arg), "guard": cmd_guard, "step": lambda: cmd_step(arg),
-     "mark": lambda: cmd_mark(sys.argv[2:])}.get(cmd, lambda: print(__doc__))()
+     "mark": lambda: cmd_mark(sys.argv[2:]), "auto": lambda: cmd_auto(sys.argv[2:]),
+     "guard-bash": cmd_guard_bash}.get(cmd, lambda: print(__doc__))()
