@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "httpx",
+    srcs = ["router.go"],
+    importpath = "github.com/toanmai8195/snaptix/com/tm/server/services/core/internal/httpx",
+    visibility = ["//services/core:__subpackages__"],
+    deps = [
+        "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_prometheus_client_golang//prometheus/promhttp",
+    ],
+)
+
+go_test(
+    name = "httpx_test",
+    srcs = ["router_test.go"],
+    embed = [":httpx"],
+)

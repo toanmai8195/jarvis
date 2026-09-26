@@ -119,6 +119,10 @@ services:
       - --storage.tsdb.path=/prometheus
       # Nhận metric OTLP do otel-collector đẩy vào /api/v1/otlp/v1/metrics.
       - --web.enable-otlp-receiver
+    # Scrape /metrics của service chạy trên host (job core). Docker Desktop có
+    # sẵn host.docker.internal; Linux cần ánh xạ tới host-gateway.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
       - prometheus-data:/prometheus
     ports:

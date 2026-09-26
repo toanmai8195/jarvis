@@ -48,7 +48,12 @@ make migrate
 
 # 3. Server (Go) — chạy trực tiếp bằng go khi dev
 cd com/tm/server
-go run ./services/core/cmd/server
+cp services/core/.env.example services/core/.env   # lần đầu; sửa nếu cần
+set -a; . services/core/.env; set +a                # nạp CORE_* vào shell (core đọc env, không tự đọc file .env)
+go run ./services/core/cmd/server                   # hoặc: bazel run //services/core/cmd/server:server
+#    core nghe :8080 — curl localhost:8080/healthz (sống), /readyz (ping được PG core), /metrics (Prometheus).
+#    Core khởi động được cả khi PG chưa lên (pool lười): /readyz trả 503 tới khi PG sẵn sàng.
+#    Prometheus (job `core`) scrape host.docker.internal:8080/metrics — xem http://localhost:9090/targets.
 go run ./services/core/cmd/worker          # terminal khác
 go run ./services/stats-worker/cmd/worker  # terminal khác
 
@@ -67,7 +72,9 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 
 | Biến | Dùng bởi | Ví dụ |
 |---|---|---|
-| `CORE_DATABASE_URL` | core | `postgres://snaptix:snaptix@localhost:5432/core` |
+| `CORE_DATABASE_URL` | core (bắt buộc; thiếu/rỗng/sai → core thoát với log ERROR nêu tên biến) | `postgres://snaptix:snaptix@localhost:5432/core?sslmode=disable` |
+| `CORE_HTTP_ADDR` | core (mặc định `:8080`, dạng `host:port`) | `:8080` |
+| `CORE_LOG_LEVEL` | core (mặc định `info`; `debug` \| `info` \| `warn` \| `error`) | `info` |
 | `ANALYTICS_DATABASE_URL` | stats-worker, bff | `postgres://snaptix:snaptix@localhost:5433/analytics` |
 | `REDIS_URL` | core, bff | `redis://localhost:6379` |
 | `MONGODB_URI` | bff | `mongodb://localhost:27017/snaptix` |

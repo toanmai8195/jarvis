@@ -34,6 +34,7 @@ handbook/
 | P0-T04 | GitHub Actions theo đường dẫn thay đổi: golangci-lint + `bazel test` target bị ảnh hưởng, pnpm lint/test/build package bị ảnh hưởng | [phase-0/P0-T04.md](phase-0/P0-T04.md) |
 | P0-T05 | Makefile / script: `make up`, `make migrate`, `make test` | [phase-0/P0-T05.md](phase-0/P0-T05.md) |
 | P0-T06 | Dashboard Grafana cơ bản: RED metrics cho mỗi service | [phase-0/P0-T06.md](phase-0/P0-T06.md) |
+| P0-T07 | Skeleton `services/core`: config env, slog JSON, chi, pgxpool, `/healthz`, `/readyz`, `/metrics` | [phase-0/P0-T07.md](phase-0/P0-T07.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -74,6 +75,12 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `observability/prometheus`, `otel/semconv` | P0-T06 | Label service là `job` khi metric vào bằng OTLP push | [P0-T06.md](phase-0/P0-T06.md#label-service-là-job-khi-metric-vào-bằng-otlp-push) |
 | `observability/promql` | P0-T06 | Error rate: `(5xx or total * 0) / total` để service không lỗi ra 0 | [P0-T06.md](phase-0/P0-T06.md#error-rate-5xx-or-total--0--total-để-service-không-lỗi-ra-0) |
 | `observability/grafana`, `docker/healthcheck` | P0-T06 | Grafana 13 tải plugin datasource ngầm sau health: cài sẵn khi build | [P0-T06.md](phase-0/P0-T06.md#grafana-13-tải-plugin-datasource-ngầm-sau-health-cài-sẵn-khi-build) |
+| `go/config`, `go/errors`, `security` | P0-T07 | Config từ env: validate hết trước khi listen, lỗi nêu tên biến, không lộ mật khẩu | [P0-T07.md](phase-0/P0-T07.md#config-từ-env-validate-hết-trước-khi-listen-lỗi-nêu-tên-biến-không-lộ-mật-khẩu) |
+| `pg/pool`, `go/pgx`, `ops/health` | P0-T07 | Pool lười: core khởi động khi PG chưa lên, `/readyz` tự hồi phục | [P0-T07.md](phase-0/P0-T07.md#pool-lười-core-khởi-động-khi-pg-chưa-lên-readyz-tự-hồi-phục) |
+| `go/context`, `go/interface`, `go/testing` | P0-T07 | `/readyz` có deadline riêng, phụ thuộc interface `pinger` ở phía dùng | [P0-T07.md](phase-0/P0-T07.md#readyz-có-deadline-riêng-phụ-thuộc-interface-pinger-ở-phía-dùng) |
+| `go/http`, `go/chi` | P0-T07 | chi: `r.Method(GET, ...)` cho `/metrics` để có 405 | [P0-T07.md](phase-0/P0-T07.md#chi-rmethodget--cho-metrics-để-có-405) |
+| `observability/prometheus`, `docker/compose` | P0-T07 | `/metrics` bằng `promhttp` + Prometheus scrape service trên host | [P0-T07.md](phase-0/P0-T07.md#metrics-bằng-promhttp--prometheus-scrape-service-trên-host) |
+| `bazel`, `bazel/bzlmod`, `go/modules` | P0-T07 | Thêm dependency Go vào workspace Bazel | [P0-T07.md](phase-0/P0-T07.md#thêm-dependency-go-vào-workspace-bazel) |
 
 ## Mẫu một file
 

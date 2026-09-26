@@ -71,3 +71,11 @@ Ngoài phạm vi (ghi lại, không làm):
 - Grafana 13.2.2 tải plugin datasource `prometheus`/`tempo` ngầm (background installer, cần Internet) vài giây **sau** khi `/api/health` OK, nên ngay sau `up --wait` query trả 404 `plugin.notRegistered`. Dockerfile grafana đã cài sẵn `prometheus 13.2.1`, `tempo 13.2.2` lúc build. Khi nâng Grafana phải nâng hai bản pin này. Các plugin khác (zipkin, jaeger, mssql...) vẫn được tải ngầm lúc chạy — nếu muốn chạy offline hoàn toàn, cân nhắc `GF_PLUGINS_PREINSTALL_DISABLED=true` (đổi compose, ngoài phạm vi).
 - `deploy/observability/grafana/check-dashboards.sh` + `_test.sh` nằm trong thư mục grafana (TC20 chỉ cho đổi `deploy/observability/grafana/**`), nên `make test` (`scripts/test-all.sh`, chỉ quét `scripts/*_test.sh`) chưa gọi. Task sau nên thêm vào `suite_scripts` và CI.
 - Script kiểm tra không chứa chuỗi `__inputs`/`DS_PROMETHEUS` vì TC01 grep cả `deploy/observability/grafana`: check dạng export bằng "khoá cấp đầu bắt đầu bằng `__`" và placeholder `${DS_`.
+
+## P0-T07
+
+- `local-setup.md` bước 3 vẫn có `go run ./services/core/cmd/worker` và `./services/stats-worker/cmd/worker`, hai binary này chưa có (task sau). Không xoá vì là mô tả đích.
+- Có hai nguồn metric cho core: scrape `/metrics` (job `core`, từ P0-T07) và OTLP push (từ P0-T10, `job` dạng `snaptix/core`, handbook P0-T06). Biến `service` của dashboard RED sẽ thấy hai giá trị. P0-T08/P0-T10 nên chọn một nguồn cho metric RED.
+- Core chưa có graceful shutdown: `defer pool.Close()` không chạy khi process bị SIGTERM. Đúng phạm vi P0-T09.
+- `scripts/migrate.sh` mặc định `CORE_DATABASE_URL` không có `sslmode=disable` (pgx/goose thử TLS rồi fallback). `.env.example` của core dùng `?sslmode=disable`. Không lỗi, chỉ lệch nhỏ; có thể thống nhất khi đóng phase.
+- TC18 chạy ngay sau TC17 (pause/unpause PG): `dc up -d --wait postgres-core` báo `container ... is unhealthy` một lần vì healthcheck của PG còn fail từ lúc pause. Core vẫn trả 200. Đã chạy lại TC18 khi PG healthy: pass. Không phải lỗi của core.

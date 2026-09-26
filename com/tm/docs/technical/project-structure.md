@@ -63,7 +63,8 @@ com/tm/server/
     │       ├── wallet/           # module: account, ledger, topup, refund
     │       ├── money/            # value type VND
     │       ├── idempotency/      # dùng bởi wallet, booking
-    │       └── httpx/            # router, middleware, map lỗi → HTTP
+    │       ├── config/           # đọc + validate env CORE_* (P0-T07)
+    │       └── httpx/            # router, middleware, map lỗi → HTTP; /healthz, /readyz, /metrics
     └── stats-worker/
         ├── cmd/worker/main.go
         └── internal/
@@ -123,7 +124,8 @@ func NewService(pool *pgxpool.Pool, wallet debiter) *Service { // nhận interfa
 
 ```go
 // cmd/server/main.go — wiring thủ công, không DI framework
-pool := postgres.MustConnect(ctx, cfg.DatabaseURL)
+cfg, err := config.Load(os.LookupEnv)            // lỗi → log ERROR nêu tên biến, exit 1
+pool, err := pgxpool.NewWithConfig(ctx, cfg.DB) // pool lười: không Ping lúc khởi động, /readyz báo trạng thái PG
 walletSvc := wallet.NewService(pool)
 bookingSvc := booking.NewService(pool, walletSvc)
 catalogSvc := catalog.NewService(pool)

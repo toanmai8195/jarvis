@@ -88,7 +88,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 6. Commit: `feat(deploy): dashboard Grafana RED theo service provisioning từ file, cài sẵn plugin prometheus/tempo khi build [P0-T06]` · Push: không (execute-all push khi đóng phase)
 
 ### core
-- [ ] **P0-T07** Skeleton `com/tm/server/services/core`: config (env), slog JSON, chi router, pgxpool, `/healthz`, `/readyz`, `/metrics`
+- [x] **P0-T07** Skeleton `com/tm/server/services/core`: config (env), slog JSON, chi router, pgxpool, `/healthz`, `/readyz`, `/metrics`
+  - [x] 1. Test case: P0-T07-TC01..TC27 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `feat(core): skeleton services/core — config env CORE_*, slog JSON, chi, pgxpool lười, /healthz, /readyz, /metrics, Prometheus scrape job core [P0-T07]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T08** Middleware: request ID, recover, access log, OTel HTTP
 - [ ] **P0-T09** Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng `[G3]`
 - [ ] **P0-T10** Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP `[G10]`

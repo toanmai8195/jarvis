@@ -1,7 +1,7 @@
 # Prometheus (P0-T02).
 # Metric của app đi vào qua OTLP (otel-collector đẩy tới /api/v1/otlp, cần cờ
-# --web.enable-otlp-receiver). Scrape chỉ dùng cho chính Prometheus và
-# self-telemetry của otel-collector. Target core/bff thêm từ P0-T07+.
+# --web.enable-otlp-receiver). Scrape dùng cho chính Prometheus, self-telemetry
+# của otel-collector và /metrics của service chạy trên host (core từ P0-T07).
 global:
   scrape_interval: 15s
   evaluation_interval: 15s
@@ -26,3 +26,9 @@ scrape_configs:
   - job_name: otel-collector
     static_configs:
       - targets: ["otel-collector:8888"]
+
+  # core chạy trên host (go run / bazel run), cổng 8080. Từ container gọi host
+  # qua host.docker.internal — compose đặt extra_hosts host-gateway cho Linux.
+  - job_name: core
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
