@@ -5,10 +5,11 @@
 ```
 snaptix/
 ├── README.md
+├── Makefile                  # make up / migrate / test (local-setup.md) — logic ở scripts/
 ├── .github/workflows/        # CI chạy theo đường dẫn thay đổi
 ├── deploy/                   # docker-compose, observability — dùng cho cả server lẫn app
 ├── loadtest/                 # kịch bản k6, kết quả theo phase
-├── scripts/                  # script kiểm tra repo (cấu trúc, compose), script CI (ci-*.sh) + test *_test.sh
+├── scripts/                  # script kiểm tra repo (cấu trúc, compose), script CI (ci-*.sh), script của make (migrate.sh, test-all.sh) + test *_test.sh
 └── com/tm/
     ├── server/               # Go — Bazel workspace
     ├── app/                  # Node.js + React — pnpm workspace

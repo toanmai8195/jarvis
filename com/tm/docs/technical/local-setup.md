@@ -25,18 +25,26 @@
 
 ## Các bước
 
+Các lệnh `make` dùng `Makefile` ở gốc repo (GNU Make 3.81 có sẵn trên macOS là đủ; `make` không đối số chỉ in hướng dẫn). Chạy được từ thư mục khác bằng `make -C <repo> <target>`.
+
 ```bash
 git clone <repo-url> snaptix && cd snaptix
 
-# 1. Hạ tầng: postgres (core + analytics), mongodb, redis, observability
+# 1. Hạ tầng: postgres (core + analytics), mongodb, redis, observability — chờ tới khi mọi service healthy
 #    Không cần deploy/.env (mặc định khớp bảng dưới). Chi tiết: deploy/README.md
-docker compose -f deploy/docker-compose.yml up -d --wait
+make up
+#    = docker compose -f deploy/docker-compose.yml up -d --wait   (idempotent: chạy lại không tạo lại container)
+#    Tắt: docker compose -f deploy/docker-compose.yml down   (thêm -v để xoá cả dữ liệu)
 
-# 2. Migration (goose trên host; đặt CORE_DATABASE_URL, ANALYTICS_DATABASE_URL theo bảng "Biến môi trường")
-export CORE_DATABASE_URL=postgres://snaptix:snaptix@localhost:5432/core
-export ANALYTICS_DATABASE_URL=postgres://snaptix:snaptix@localhost:5433/analytics
-goose -dir com/tm/server/db/core/migrations postgres "$CORE_DATABASE_URL" up
-goose -dir com/tm/server/db/analytics/migrations postgres "$ANALYTICS_DATABASE_URL" up
+# 2. Migration PG core + PG analytics (goose trên host, scripts/migrate.sh)
+make migrate
+#    = goose -dir com/tm/server/db/core/migrations postgres "$CORE_DATABASE_URL" up
+#      goose -dir com/tm/server/db/analytics/migrations postgres "$ANALYTICS_DATABASE_URL" up
+#    - Biến chưa đặt → mặc định theo bảng "Biến môi trường"; đặt biến để trỏ DB khác.
+#    - goose tìm trong PATH, rồi `go env GOBIN`, `$(go env GOPATH)/bin` — không cần sửa PATH.
+#      Không có goose → lệnh dừng và in lệnh cài: go install github.com/pressly/goose/v3/cmd/goose@v3.28.0
+#    - Migrate cả hai DB kể cả khi một DB lỗi; có DB lỗi → exit 1, in tên DB (core/analytics).
+#      URL chưa có `connect_timeout` được thêm `connect_timeout=10` (đổi bằng MIGRATE_CONNECT_TIMEOUT).
 
 # 3. Server (Go) — chạy trực tiếp bằng go khi dev
 cd com/tm/server
@@ -88,6 +96,15 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 ## Build & kiểm thử
 
 ```bash
+# Toàn bộ test (từ gốc repo, không cần stack Docker) — scripts/test-all.sh:
+make test
+#   scripts: bash scripts/*_test.sh, bash scripts/check-structure.sh, bash scripts/check-compose.sh
+#   server (com/tm/server): go vet ./... ; go test -race ./... ; bazel test //...
+#   app (com/tm/app): pnpm install --frozen-lockfile ; pnpm lint ; pnpm typecheck ; pnpm test ; pnpm build
+#   Mọi bộ đều chạy, có bước lỗi → exit 1 và in danh sách bước lỗi ở cuối.
+#   Chỉ một bộ: bash scripts/test-all.sh server   (scripts | server | app)
+#   Không gồm golangci-lint và gazelle (xem dưới).
+
 # Server
 cd com/tm/server
 go test ./...                 # vòng dev nhanh

@@ -32,6 +32,7 @@ handbook/
 | P0-T02 | `deploy/docker-compose.yml`: PG core/analytics, MongoDB, Redis, otel-collector, Prometheus, Tempo, Grafana | [phase-0/P0-T02.md](phase-0/P0-T02.md) |
 | P0-T03 | goose, `db/core/migrations`, `db/analytics/migrations`, migration rỗng đầu tiên | [phase-0/P0-T03.md](phase-0/P0-T03.md) |
 | P0-T04 | GitHub Actions theo đường dẫn thay đổi: golangci-lint + `bazel test` target bị ảnh hưởng, pnpm lint/test/build package bị ảnh hưởng | [phase-0/P0-T04.md](phase-0/P0-T04.md) |
+| P0-T05 | Makefile / script: `make up`, `make migrate`, `make test` | [phase-0/P0-T05.md](phase-0/P0-T05.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -64,6 +65,9 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `node/pnpm`, `ci` | P0-T04 | Job app: install frozen, filter theo merge-base, chạy tất cả khi file gốc workspace đổi | [P0-T04.md](phase-0/P0-T04.md#job-app-install-frozen-filter-theo-merge-base-chạy-tất-cả-khi-file-gốc-workspace-đổi) |
 | `go/lint`, `ci` | P0-T04 | golangci-lint v2: pin bản, preset `standard`, không bật `std-error-handling` | [P0-T04.md](phase-0/P0-T04.md#golangci-lint-v2-pin-bản-preset-standard-không-bật-std-error-handling) |
 | `bash`, `testing`, `ci` | P0-T04 | Test script CI bằng binary giả qua biến môi trường | [P0-T04.md](phase-0/P0-T04.md#test-script-ci-bằng-binary-giả-qua-biến-môi-trường) |
+| `make`, `bash` | P0-T05 | Makefile mỏng cho GNU Make 3.81, logic nằm trong `scripts/` | [P0-T05.md](phase-0/P0-T05.md#makefile-mỏng-cho-gnu-make-381-logic-nằm-trong-scripts) |
+| `pg/migration`, `go/tooling`, `bash` | P0-T05 | `make migrate`: tìm goose ngoài PATH, không treo, không che lỗi DB sau | [P0-T05.md](phase-0/P0-T05.md#make-migrate-tìm-goose-ngoài-path-không-treo-không-che-lỗi-db-sau) |
+| `bash`, `testing`, `node/pnpm` | P0-T05 | `make test`: chạy mọi bộ, gom lỗi, không để bước cuối che bước đầu | [P0-T05.md](phase-0/P0-T05.md#make-test-chạy-mọi-bộ-gom-lỗi-không-để-bước-cuối-che-bước-đầu) |
 
 ## Mẫu một file
 

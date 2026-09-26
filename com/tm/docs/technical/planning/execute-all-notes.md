@@ -55,3 +55,12 @@ Ngoài phạm vi (ghi lại, không làm):
 - Cache Bazel (disk/repository cache của setup-bazel) và cache pnpm store: chưa bật. Bật khi thời gian CI thành vấn đề.
 - `CLAUDE.md` bước 4 (App) vẫn ghi `pnpm --filter "...[origin/main]" lint test build`. Đề xuất sửa đã có ở P0-T01b, người dùng tự sửa.
 - Quy trình: agent triển khai có một lần sửa `com/tm/server/.golangci.yml` bằng python qua Bash (bỏ dòng `run.go` lặp) thay vì Edit — vi phạm quy tắc "không lách hook bằng Bash" (hook vẫn cho phép vì bước 1 đã `[x]`). Orchestrator đã đọc lại file và chạy lại golangci-lint/bazel test: nội dung đúng.
+
+## P0-T05
+
+- `make test` (`scripts/test-all.sh`) không chạy golangci-lint và `bazel run //:gazelle` (A4 không bắt buộc; gazelle sửa `BUILD.bazel`). Lint vẫn ở CI (`scripts/ci-server.sh`). Nếu muốn một lệnh "như CI" trên máy dev, cân nhắc target phụ (vd `make lint`) ở task sau.
+- CI chưa gọi `scripts/*_test.sh` (kể cả `migrate_test.sh`, `test-all_test.sh` mới) — cùng ghi chú "Ngoài phạm vi" của P0-T04. `scripts/ci-changes.sh` chỉ coi `scripts/ci-*` là file CI, nên đổi `scripts/migrate.sh`/`test-all.sh` không kích hoạt job nào.
+- Chưa có `make down`: tắt stack vẫn dùng `docker compose -f deploy/docker-compose.yml down [-v]` (đã ghi trong `local-setup.md` và `make help`). Target chạy service (core/bff/web) để cho P0-T07+, P0-T11+.
+- TC14 chạy đúng thứ tự bảng thì lần `make -C $REPO migrate` sau TC12 in `OK 00001_init.sql` cho analytics (TC12 dừng analytics trước khi migrate, TC14 không `down -v`), không phải `no migrations to run`. Đã chạy lại TC14 khi cả hai DB đã migrate: in `no migrations to run` cho cả hai. Không phải lỗi của Makefile.
+- `CLAUDE.md` bước 4 (App) vẫn ghi `pnpm --filter "...[origin/main]" lint test build` (ghi chú P0-T01b). Bước 4 của task này chạy lệnh đúng `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint|test|build)$/'`.
+- `actionlint` chưa cài trên máy dev, bước 4 bỏ qua.
