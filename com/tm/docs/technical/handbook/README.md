@@ -26,6 +26,7 @@ handbook/
 
 | Task | Tên | File |
 |---|---|---|
+| P0-T01 | Khởi tạo cấu trúc `com/tm/{server,app,docs}`, `deploy/`, `loadtest/` | [phase-0/P0-T01.md](phase-0/P0-T01.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -33,6 +34,8 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 
 | Chủ đề | Task | Bài học | Link |
 |---|---|---|---|
+| `git` | P0-T01 | Git không track thư mục rỗng: `.gitkeep` hoặc README | [P0-T01.md](phase-0/P0-T01.md#git-không-track-thư-mục-rỗng-gitkeep-hoặc-readme) |
+| `bash`, `testing` | P0-T01 | Script kiểm tra cấu trúc nhận ROOT làm tham số | [P0-T01.md](phase-0/P0-T01.md#script-kiểm-tra-cấu-trúc-nhận-root-làm-tham-số) |
 
 ## Mẫu một file
 

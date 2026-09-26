@@ -28,7 +28,7 @@ snaptix dùng **phase làm trục chính** (làm một mình nên cần mốc tu
 
 | Phase | Tên | Mốc demo | Trạng thái |
 |---|---|---|---|
-| [0](phase-0-foundation/) | Nền móng | `docker compose up` chạy đủ hạ tầng, CI xanh, trace hiển thị trên Grafana | ⬜ |
+| [0](phase-0-foundation/) | Nền móng | `docker compose up` chạy đủ hạ tầng, CI xanh, trace hiển thị trên Grafana | 🟨 |
 | [1](phase-1-catalog-search/) | Catalog & tìm chuyến | Gọi API core tìm được chuyến từ dữ liệu seed | ⬜ |
 | [2](phase-2-auth-bff-web/) | Đăng nhập, BFF, web client | Đăng nhập Google, tìm chuyến trên web | ⬜ |
 | [3](phase-3-wallet/) | Ví | Nạp tiền, xem số dư và lịch sử giao dịch | ⬜ |

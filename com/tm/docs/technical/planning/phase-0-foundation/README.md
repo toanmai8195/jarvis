@@ -30,7 +30,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
 ## Task
 
 ### infra
-- [ ] **P0-T01** Khởi tạo cấu trúc `com/tm/{server,app,docs}`, `deploy/`, `loadtest/` theo [project-structure](../../project-structure.md)
+- [x] **P0-T01** Khởi tạo cấu trúc `com/tm/{server,app,docs}`, `deploy/`, `loadtest/` theo [project-structure](../../project-structure.md)
+  - [x] 1. Test case: P0-T01-TC01..TC14 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `chore(repo): khởi tạo khung monorepo và script kiểm tra cấu trúc [P0-T01]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T01a** `com/tm/server`: `MODULE.bazel` (rules_go, gazelle, rules_oci), `.bazelversion`, `.bazelrc`, một `go.mod`, target `//:gazelle` với `gazelle:prefix` và `go_naming_convention import`; macro `com_tm_go_image` (`tools/rules`) build binary + OCI image distroless, gazelle `map_kind` cho `go_binary` (theo repo thor) `[G14]`
 - [ ] **P0-T01b** `com/tm/app`: `pnpm-workspace.yaml`, `package.json` gốc, script `dev`/`build`/`test` chạy theo filter
 - [ ] **P0-T02** `deploy/docker-compose.yml`: PG core (5432), PG analytics (5433), MongoDB, Redis, otel-collector, Prometheus, Grafana, Tempo/Jaeger
