@@ -1,4 +1,4 @@
-# Lessons learned — Phase 6 — Thống kê (Go + PG analytics)
+# Lessons learned — Phase 11 — Chịu tải & tối ưu
 
 > Viết **sau khi** đóng phase. Trung thực, cụ thể, có số liệu. Mục đích là để chính mình của 6 tháng sau đọc lại vẫn hiểu.
 
@@ -15,13 +15,18 @@
 
 | # | Kết quả | Cách đã giải | Link ADR / PR |
 |---|---|---|---|
-| P8 | | | |
-| A1 | | | |
-| A2 | | | |
-| A3 | | | |
-| A4 | | | |
-| A5 | | | |
-| A6 | | | |
+| G8 | | | |
+| G13 | | | |
+| P11 | | | |
+| D1 | | | |
+| D3 | | | |
+| D2 | | | |
+| P9 | | | |
+| P12 | | | |
+| N1 | | | |
+| N5 | | | |
+| N7 | | | |
+| N9 | | | |
 
 ## Điều làm tốt
 

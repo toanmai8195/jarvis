@@ -2,6 +2,8 @@
 
 Hệ thống đặt vé xe khách / tàu điện, dự án học tập để lên senior Go, PostgreSQL, Node.js, React.
 
+**Mục tiêu: một lần chạy `/execute-all` hoàn thành cả dự án, không có bước nào chờ người duyệt.** Đây là dự án đầu tiên của người dùng với Go, PG, Node, Mongo, React: vẫn chia code thành subtask nhỏ và ghi handbook kỹ, để người dùng đọc lại theo commit và handbook sau khi chạy xong.
+
 | Thư mục | Nội dung | Build / test |
 |---|---|---|
 | `com/tm/server` | Go: core, stats-worker, `pkg/`, migration | `go test -race ./...`, `bazel run //:gazelle`, `bazel test //...` |
@@ -18,38 +20,38 @@ Tài liệu quan trọng:
 
 ## Quy trình làm một task — BẮT BUỘC, theo đúng thứ tự
 
-Task được gọi bằng ID, ví dụ `P3-T05`. Không bỏ bước, không đảo thứ tự.
+Task được gọi bằng ID, ví dụ `P3-T05`. Không bỏ bước, không đảo thứ tự. Mọi task chạy qua skill `execute-all` (xem [Chế độ execute-all](#chế-độ-execute-all)); không có bước nào dừng hỏi người dùng.
 
 ### Bước 0 — Validate trước khi làm
 
-Kiểm tra tất cả, thiếu một điều kiện → **dừng**, báo điều kiện nào chưa đạt, không làm task:
+Kiểm tra tất cả, thiếu một điều kiện → không làm task; tự khắc phục nếu là việc của execute-all, không thì `auto block "<lý do>"`:
 
 1. **Task liền trước** (trong cùng phase, hoặc task cuối của phase trước) đã:
    - `[x]` ở dòng task và đủ `[x]` cả 6 bước trong checklist con;
    - đã commit: `git log --grep "[<Task ID>]"` có commit của task đó.
 2. Phase trước đã đóng (✅ trong `planning/README.md`) nếu đây là task đầu của phase.
 3. Working tree sạch (`git status` không có thay đổi chưa commit của task khác).
-4. Task không mâu thuẫn với docs/ADR; thiếu thông tin → hỏi.
+4. Task không mâu thuẫn với docs/ADR; thiếu thông tin → chọn phương án hợp lý nhất theo docs, ghi quyết định vào `planning/execute-all-notes.md`, không hỏi.
 
-Chỉ bỏ qua điều kiện khi người dùng nói rõ cho phép, và ghi lại lý do vào checklist con.
-
-> **Được enforce bằng hook**: `.claude/settings.json` chạy `python3 .claude/scripts/planning.py guard` trước mọi Edit/Write vào `com/tm/server/**` và `com/tm/app/**`. Hook từ chối nếu task trước chưa đủ checklist + commit, phase trước chưa đóng, task hiện tại chưa có checklist con, hoặc bước 1 (duyệt test case) chưa `[x]`. Không lách hook bằng Bash (`sed`, heredoc...) — hook bị chặn nghĩa là quy trình chưa đúng. Kiểm tra nhanh: `python3 .claude/scripts/planning.py validate`.
+> **Được enforce bằng hook**: `.claude/settings.json` chạy `python3 .claude/scripts/planning.py guard` trước mọi Edit/Write vào `com/tm/server/**` và `com/tm/app/**`. Hook từ chối nếu task trước chưa đủ checklist + commit, phase trước chưa đóng, task hiện tại chưa có checklist con, hoặc bước 1 (review agent duyệt test case) chưa `[x]`. Hook `guard-bash` chặn commit/push sai quy trình, Stop hook không cho dừng khi execute-all còn việc. Không lách hook bằng Bash (`sed`, heredoc...) — hook bị chặn nghĩa là quy trình chưa đúng. Kiểm tra nhanh: `python3 .claude/scripts/planning.py validate`.
 
 Đạt → đọc `README.md` của phase (mục tiêu, requirement, challenge trong `[...]`, DoD), rồi **thêm checklist con** ngay dưới dòng task:
 
 ```markdown
 - [ ] **P3-T05** <mô tả task>
-  - [ ] 1. Test case: P3-T05-TC01..TCnn — đã được duyệt
+  - [ ] 1. Test case: P3-T05-TC01..TCnn + kế hoạch subtask — đã được duyệt
   - [ ] 2. Code
+    - [ ] 2.1 <subtask nhỏ, vd service rỗng in hello world>
+    - [ ] 2.2 <subtask kế tiếp, vd thêm HTTP server>
   - [ ] 3. Unit test
   - [ ] 4. Build + unit test pass
   - [ ] 5. Test case pass + handbook
-  - [ ] 6. Commit: `<type(scope): mô tả [Task ID]>` · Push: có/không
+  - [ ] 6. Commit: `<type(scope): mô tả [Task ID]>` · Push: không (execute-all push khi đóng phase)
 ```
 
 Đánh `[x]` từng bước ngay khi bước đó xong. Phase đang ⬜ → 🟨 khi bắt đầu task đầu tiên.
 
-### Bước 1 — Gen test case → chờ duyệt
+### Bước 1 — Gen test case → review agent duyệt
 
 **Mỗi task một bộ test case riêng, trong thư mục riêng.**
 
@@ -60,16 +62,23 @@ Chỉ bỏ qua điều kiện khi người dùng nói rõ cho phép, và ghi l�
 
 1. Tạo `tasks/<Task ID>/test-cases.md` (tiêu đề `# Test cases — <Task ID>: <tên task>`), bảng cột `ID | Loại | Kịch bản | Kết quả mong đợi | Trạng thái`, mỗi test case gồm: ID `<Task ID>-TCnn` (đánh số từ `TC01` trong task), loại, kịch bản, kết quả mong đợi, trạng thái ⬜. Test case phải kiểm chứng đúng phạm vi của task, không mượn ID của task hay phase khác.
 2. Nếu task góp phần làm pass test nghiệm thu (`P<N>-ATnn`) nào, nêu thêm dòng "Test nghiệm thu liên quan: ..." dưới bảng — để biết, không thay cho test case của task.
-3. Trình bày bộ test case cho người dùng và **DỪNG**.
-4. Chỉ sang bước 2 khi người dùng **duyệt rõ ràng**. Người dùng yêu cầu sửa → sửa rồi xin duyệt lại.
-5. Duyệt xong → đánh `[x]` bước 1, ghi dải ID test case.
+3. Viết **kế hoạch subtask** cho bước 2 vào `tasks/<Task ID>/test-cases.md` (mục `## Kế hoạch subtask`): chia code thành các bước nhỏ, mỗi bước chạy được và thêm **một** khái niệm mới (vd: service rỗng in hello world → thêm HTTP server → thêm router → thêm DAO → thêm handler → thêm service → cập nhật docker). Mỗi subtask ghi: làm gì, file nào, **kiến thức Go/PG/Node/React mới** và lý do chọn cách đó.
+4. Một agent **khác, độc lập** review bộ test case + kế hoạch subtask, ghi `### Review lần k — APPROVED` hoặc `— CHANGES_REQUESTED` vào mục `## Review` cuối file. Có yêu cầu sửa → agent sinh sửa, ghi `### Sửa lần k`, rồi review lại.
+5. `APPROVED` → đánh `[x]` bước 1 (ghi dải ID test case và `(review agent, execute-all)`), chép các subtask thành checklist `2.1`, `2.2`... dưới bước 2.
 
-Test case đã duyệt là tiêu chí nghiệm thu của task: muốn thêm/sửa/xoá sau đó phải xin duyệt lại.
+Test case đã duyệt là tiêu chí nghiệm thu của task: muốn thêm/sửa/xoá sau đó phải qua review agent lại.
 
-### Bước 2 — Code
+### Bước 2 — Code, từng subtask một
+
+Với **mỗi** subtask theo thứ tự:
+1. Code đúng phạm vi subtask (nhỏ, chạy được).
+2. Chạy thử để chứng minh nó hoạt động (build, `go run`, `curl`...).
+3. Chạy được → đánh `[x]` subtask đó, sang subtask tiếp theo ngay (không dừng). Không gộp nhiều subtask làm một.
+
+Đủ các subtask → đánh `[x]` bước 2.
 
 - Theo `project-structure.md`: package theo nghiệp vụ, interface phía dùng, wiring tay, không DI framework; Fastify plugin, không NestJS.
-- Chỉ làm trong phạm vi task. Việc ngoài phạm vi → ghi lại, báo người dùng, không tự làm.
+- Chỉ làm trong phạm vi task. Việc ngoài phạm vi → ghi vào `planning/execute-all-notes.md`, không tự làm.
 - Thêm/xoá file Go hoặc đổi import → `bazel run //:gazelle`.
 
 ### Bước 3 — Agent tự viết unit test
@@ -93,29 +102,28 @@ Fail → sửa code (không sửa/skip test cho pass) → chạy lại đến kh
 3. Cập nhật challenge (⬜ → 🟨 / ✅ khi đạt tiêu chí "Hoàn thành khi").
 4. Code khác thiết kế trong docs (schema, API, luồng) → cập nhật docs.
 5. Đánh `[x]` bước 5 **và** `[x]` dòng task.
-6. Task cuối của phase và đủ DoD → nhắc người dùng chạy checklist đóng phase và viết `lessons-learned.md`.
+6. Task cuối của phase → execute-all tự đóng phase (test nghiệm thu, DoD, checklist đóng phase; `lessons-learned.md` để người dùng tự viết sau).
 
-### Bước 6 — Hỏi commit và push
+### Bước 6 — Tự commit
 
-1. Tóm tắt thay đổi, đề xuất commit message, hỏi người dùng: **có commit không? có push không?**
-2. Chỉ commit/push khi người dùng đồng ý. Không tự push.
-3. Người dùng đồng ý → **trước khi commit**, đánh `[x]` bước 6 và ghi commit message + quyết định push vào dòng đó, rồi commit tất cả trong **một** commit. Commit message bắt buộc chứa `[<Task ID>]` — hash tra bằng `git log --grep "[<Task ID>]"`, không ghi hash vào file (tránh để lại thay đổi chưa commit).
-4. Người dùng chưa muốn commit → để bước 6 `[ ]`. **Task kế tiếp sẽ bị chặn ở bước 0** cho đến khi commit.
+1. Soạn commit message Conventional Commits có `[<Task ID>]` (+ tag challenge đã đạt).
+2. **Trước khi commit**, đánh `[x]` bước 6 và ghi commit message + `Push: không` vào dòng đó, rồi commit tất cả trong **một** commit. Hash tra bằng `git log --grep "[<Task ID>]"`, không ghi hash vào file (tránh để lại thay đổi chưa commit).
+3. Không push ở bước này — execute-all chỉ push khi đóng phase. Working tree phải sạch sau commit.
 
 ---
 
 ## Chế độ execute-all
 
-Người dùng đã cho phép (2026-09-26) chạy tự động toàn bộ task đến hết phase 8 bằng skill `execute-all`. Chỉ áp dụng khi `python3 .claude/scripts/planning.py auto status` là `running`; ngoài chế độ này quy trình trên giữ nguyên. Ngoại lệ duy nhất:
+Người dùng đã quyết định (2026-09-27): toàn bộ dự án chạy tự động bằng skill `execute-all`, từ task hiện tại đến hết phase 12 (phase 13 tuỳ chọn, chạy khi gọi `/execute-all 13`), **không có bước chờ người duyệt**.
 
-- **Bước 1**: test case do một agent riêng sinh ra, rồi một agent **khác, độc lập** review; review ghi `APPROVED` trong mục `## Review` của `test-cases.md` thay cho người dùng duyệt. Ghi `(review agent, execute-all)` vào dòng bước 1.
-- **Bước 6**: tự commit mỗi task (không hỏi), `Push: không`. Chỉ push: ngay sau commit đóng phase `docs(planning): đóng phase N [phase-N]`; trong lúc đóng phase để kiểm chứng CI trên `main`; nhánh `ci-check/*` cho test nghiệm thu CI (xoá sau khi xong). Không force push, không `--no-verify`, không amend.
-- **Chỉ tiêu tải**: phase 7 nghiệm thu theo cột "Nghiệm thu máy dev" trong `architecture.md` (quyết định 2026-09-26), không theo mục tiêu production.
-- **Chạy lại sau khi bị ngắt** (hết token, session chết): `.claude/scripts/execute-all-watchdog.sh start` chạy claude + watchdog trong tmux session `snaptix`; watchdog gõ "tiếp tục execute-all" vào tmux session `snaptix`; skill luôn `auto start` rồi làm tiếp từ trạng thái planning + git.
-- **Đóng phase**: agent tự chạy test nghiệm thu, DoD, checklist đóng phase — trừ `lessons-learned.md` (người dùng tự viết sau). Test nghiệm thu không thể chạy tự động → ⚠️ kèm lý do ở mục `## Miễn trừ` cuối `acceptance-tests.md`.
-- **Việc ngoài phạm vi**: không hỏi giữa chừng, ghi vào `planning/execute-all-notes.md` để báo cáo cuối.
-
-Enforce bằng hook: `guard` (Edit/Write), `guard-bash` (commit/push), `auto stop-hook` (không dừng khi còn việc). Bị chặn thật sự (cần người) → `auto block "<lý do>"` và dừng.
+- **Bước 1**: agent riêng sinh test case + kế hoạch subtask, agent **khác, độc lập** review thay người dùng.
+- **Bước 2**: làm hết subtask liền nhau, mỗi subtask phải chạy thử được trước khi tick.
+- **Bước 6**: tự commit mỗi task, `Push: không`. Chỉ push: ngay sau commit đóng phase `docs(planning): đóng phase N [phase-N]`; trong lúc đóng phase để kiểm chứng CI trên `main`; nhánh `ci-check/*` cho test nghiệm thu CI (xoá sau khi xong). Không force push, không `--no-verify`, không amend.
+- **Đóng phase**: agent tự chạy test nghiệm thu, DoD, checklist đóng phase — trừ `lessons-learned.md` (người dùng tự viết sau, không chặn đóng phase). Test nghiệm thu không thể chạy tự động → ⚠️ kèm lý do ở mục `## Miễn trừ` cuối `acceptance-tests.md`.
+- **Chỉ tiêu tải** (phase 11): máy dev không đạt được mục tiêu production → ghi số đo thực tế, chỉ tiêu đã hạ cho máy dev và lý do vào `## Miễn trừ`.
+- **Việc ngoài phạm vi / quyết định thiếu thông tin**: không hỏi, ghi vào `planning/execute-all-notes.md` để báo cáo cuối.
+- **Chạy lại sau khi bị ngắt** (hết token, session chết): `.claude/scripts/execute-all-watchdog.sh start` chạy claude + watchdog trong tmux session `snaptix`; watchdog gõ "tiếp tục execute-all"; skill luôn `auto start` rồi làm tiếp từ trạng thái planning + git.
+- Bị chặn thật sự (cần người: đăng nhập, quyền, hạ tầng) → `auto block "<lý do>"` và dừng; người dùng gỡ xong gọi lại `/execute-all`.
 
 ---
 
@@ -140,11 +148,13 @@ Enforce bằng hook: `guard` (Edit/Write), `guard-bash` (commit/push), `auto sto
 
 ## Không được
 
-- Bỏ qua bước 0 hoặc làm task khi task trước chưa đủ checklist + commit mà người dùng chưa cho phép.
-- Code trước khi test case được duyệt (bởi người dùng, hoặc review agent ở chế độ execute-all).
+- Bỏ qua bước 0 hoặc làm task khi task trước chưa đủ checklist + commit.
+- Code trước khi test case + kế hoạch subtask được review agent duyệt.
+- Gộp nhiều subtask vào một lần; tick subtask chưa chạy thử được.
+- Dừng hỏi người dùng giữa chừng (trừ `auto block` khi bị chặn thật sự).
 - Đánh `[x]` / ✅ khi chưa chạy hoặc còn test fail.
 - Sửa, xoá, `skip` test để cho pass; sửa test case đã duyệt mà không xin duyệt lại.
-- Commit hoặc push khi người dùng chưa đồng ý (trừ chế độ execute-all ở trên).
+- Push ngoài các trường hợp ở [Chế độ execute-all](#chế-độ-execute-all); force push, `--no-verify`, amend.
 - Viết Go theo kiểu Java (`service/`, `repository/`, `IFoo`/`FooImpl`, DI framework, `utils/`).
 - Dùng số thực cho tiền ở bất kỳ tầng nào.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # execute-all watchdog: giữ execute-all chạy tiếp sau khi hết token / session chết.
 #
-#   .claude/scripts/execute-all-watchdog.sh start [UNTIL_PHASE]  # tạo tmux session `snaptix`: claude + watchdog + caffeinate
+#   .claude/scripts/execute-all-watchdog.sh start [UNTIL_PHASE]  # (mặc định 12) tạo tmux session `snaptix`: claude + watchdog + caffeinate
 #   .claude/scripts/execute-all-watchdog.sh tick                 # kiểm tra một lần (watchdog gọi mỗi INTERVAL giây)
 #   .claude/scripts/execute-all-watchdog.sh stop                 # dừng watchdog + caffeinate (để claude chạy tiếp)
 #
@@ -65,7 +65,7 @@ cmd_tick() {
 }
 
 cmd_start() {
-  local until="${1:-8}"
+  local until="${1:-12}"
   if tmux has-session -t "$SESSION" 2>/dev/null; then
     echo "tmux session $SESSION đã có: tmux attach -t $SESSION"
     exit 1

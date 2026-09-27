@@ -37,4 +37,4 @@ Luật trong core:
 
 - Dễ hơn: tính đúng đắn của đặt vé dựa vào transaction PG; debug một process; deploy đơn giản.
 - Khó hơn: phải giữ kỷ luật ranh giới; không scale riêng từng module.
-- Theo dõi: [Phase 9](../planning/phase-9-split-wallet/) (tuỳ chọn) tách `wallet` thành service riêng và đo so sánh với bản monolith để kiểm chứng quyết định này bằng số liệu.
+- Theo dõi: [Phase 13](../planning/phase-13-split-wallet/) (tuỳ chọn) tách `wallet` thành service riêng và đo so sánh với bản monolith để kiểm chứng quyết định này bằng số liệu.

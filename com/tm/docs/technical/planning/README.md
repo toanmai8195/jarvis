@@ -24,37 +24,45 @@ snaptix dùng **phase làm trục chính** (làm một mình nên cần mốc tu
 | `analytics` | Stats worker, analytics DB | Go, PostgreSQL |
 | `qa` | Test tự động, load test | testcontainers, Vitest, Playwright, k6 |
 
+## Chặng học theo công nghệ
+
+Mỗi chặng chỉ tập trung **một nhóm công nghệ** để làm đến đâu hiểu đến đó. Chặng A làm toàn bộ core (Go + PG) và kiểm bằng `curl` / `go test`; chặng B bọc API core bằng BFF (Node + Mongo); chặng C làm giao diện React; chặng D tổng hợp.
+
+| Chặng | Công nghệ | Phase |
+|---|---|---|
+| A | Go + PostgreSQL | 1 → 6 |
+| B | Node.js + MongoDB | 7 → 8 |
+| C | React | 9 → 10 |
+| D | Tổng hợp | 11 → 13 |
+
 ## Tổng quan phase
 
-| Phase | Tên | Mốc demo | Trạng thái |
-|---|---|---|---|
-| [0](phase-0-foundation/) | Nền móng | `docker compose up` chạy đủ hạ tầng, CI xanh, trace hiển thị trên Grafana | 🟨 |
-| [1](phase-1-catalog-search/) | Catalog & tìm chuyến | Gọi API core tìm được chuyến từ dữ liệu seed | ⬜ |
-| [2](phase-2-auth-bff-web/) | Đăng nhập, BFF, web client | Đăng nhập Google, tìm chuyến trên web | ⬜ |
-| [3](phase-3-wallet/) | Ví | Nạp tiền, xem số dư và lịch sử giao dịch | ⬜ |
-| [4](phase-4-booking/) | Giữ chỗ & đặt vé | Chọn ghế realtime, đặt vé bằng ví, nhận vé QR | ⬜ |
-| [5](phase-5-admin/) | Admin | Admin tạo tuyến, lịch chạy, giá; quản lý đơn | ⬜ |
-| [6](phase-6-analytics/) | Thống kê | Dashboard doanh thu, lấp đầy gần realtime | ⬜ |
-| [7](phase-7-scale/) | Chịu tải & tối ưu | Đạt chỉ tiêu phi chức năng dưới k6 | ⬜ |
-| [8](phase-8-cancel-reconcile/) | Huỷ/hoàn vé, đối soát, hardening | Huỷ vé hoàn tiền, đối soát chênh lệch 0, E2E đầy đủ | ⬜ |
-| [9](phase-9-split-wallet/) | *(Tuỳ chọn)* Tách wallet thành service riêng | Saga core ↔ wallet; bảng so sánh với monolith | ⬜ |
+| Phase | Chặng · Công nghệ | Tên | Mốc demo | Trạng thái |
+|---|---|---|---|---|
+| [0](phase-0-foundation/) | Go + PG | Nền móng (tối giản) | `make up && make migrate`, core `/readyz` 200, CI xanh | ⬜ |
+| [1](phase-1-catalog-search/) | A · Go + PostgreSQL | Catalog & tìm chuyến | `curl` API core tìm được chuyến trên 10 triệu `trip_seats`, p99 < 20ms | ⬜ |
+| [2](phase-2-wallet/) | A · Go + PostgreSQL | Ví (core) | `curl` nạp tiền qua mock provider, số dư và lịch sử đúng; retry không ghi trùng | ⬜ |
+| [3](phase-3-booking/) | A · Go + PostgreSQL | Giữ chỗ & đặt vé (core) | k6 tranh ghế: 0 vé trùng; đặt vé bằng `curl` trừ ví đúng | ⬜ |
+| [4](phase-4-cancel-reconcile/) | A · Go + PostgreSQL | Huỷ/hoàn vé & đối soát (core) | `curl` huỷ vé → tiền hoàn đúng chính sách; job đối soát báo chênh lệch 0 | ⬜ |
+| [5](phase-5-admin-api/) | A · Go + PostgreSQL | Admin API (core) | `curl` tạo tuyến → lịch chạy → slot sinh ra và tìm được | ⬜ |
+| [6](phase-6-analytics/) | A · Go + PostgreSQL | Thống kê (Go + PG analytics) | Đặt vé → aggregate trong PG analytics cập nhật < 5 phút; replay không lệch số | ⬜ |
+| [7](phase-7-bff-foundation/) | B · Node.js + MongoDB | BFF nền tảng & đăng nhập | Đăng nhập Google, `curl` tìm chuyến qua BFF; một trace đi bff → core → PG | ⬜ |
+| [8](phase-8-bff-business/) | B · Node.js + MongoDB | BFF nghiệp vụ & admin | Toàn bộ API public và admin dùng được bằng `curl`; SSE sơ đồ ghế realtime | ⬜ |
+| [9](phase-9-web-client/) | C · React + TypeScript | Web client (React) | Người dùng đăng nhập, tìm chuyến, chọn ghế realtime, nạp tiền, đặt vé, huỷ vé trên web | ⬜ |
+| [10](phase-10-web-admin/) | C · React + TypeScript | Web admin (React) | Operator setup tuyến → slot trên web admin; dashboard thống kê | ⬜ |
+| [11](phase-11-scale/) | D · Go + PG + Node + Redis | Chịu tải & tối ưu | k6 'mở bán Tết' 30 phút đạt chỉ tiêu; tắt Redis giữa chừng vẫn đúng | ⬜ |
+| [12](phase-12-e2e-hardening/) | D · Toàn hệ thống | E2E & hardening | E2E luồng chính chạy xanh trong CI < 10 phút | ⬜ |
+| [13](phase-13-split-wallet/) | D · Go + PG + gRPC | *(Tuỳ chọn)* Tách wallet thành service riêng | Saga core ↔ wallet; bảng so sánh với monolith | ⬜ |
 
 Trạng thái: ⬜ chưa bắt đầu · 🟨 đang làm · ✅ xong
 
 ```mermaid
 flowchart LR
-    P0[0 Nền móng] --> P1[1 Catalog]
-    P1 --> P2[2 Auth/BFF/Web]
-    P2 --> P3[3 Ví]
-    P3 --> P4[4 Đặt vé]
-    P1 --> P5[5 Admin]
-    P2 --> P5
-    P4 --> P6[6 Thống kê]
-    P4 --> P7[7 Chịu tải]
-    P6 --> P7
-    P4 --> P8[8 Huỷ/Đối soát]
-    P7 --> P8
-    P8 -.-> P9[9 Tách wallet]
+    P0[0 Nền móng] --> P1[1 Catalog] --> P2[2 Ví] --> P3[3 Đặt vé] --> P4[4 Huỷ/đối soát] --> P5[5 Admin API] --> P6[6 Thống kê]
+    P6 --> P7[7 BFF nền tảng] --> P8[8 BFF nghiệp vụ]
+    P8 --> P9[9 Web client] --> P10[10 Web admin]
+    P10 --> P11[11 Chịu tải] --> P12[12 E2E]
+    P12 -.-> P13[13 Tách wallet]
 ```
 
 ## Cấu trúc mỗi phase
@@ -96,14 +104,14 @@ Mỗi challenge được giao cho **một** phase chính.
 
 | Công nghệ | Challenge → Phase |
 |---|---|
-| Golang | G1→4 · G2→1 · G3→0 · G4→4 · G5→3 · G6→3 · G7→1 · G8→7 · G9→3 · G10→0 · G11→1 · G12→1 · G13→7 · G14→0 |
-| PostgreSQL core | P1→4 · P2→4 · P3→4 · P4→3 · P5→3 · P6→3 · P7→1 · P8→6 · P9→7 · P10→8 · P11→7 · P12→7 |
+| Golang | G1→3 · G2→1 · G3→0 · G4→3 · G5→2 · G6→2 · G7→1 · G8→11 · G9→2 · G10→7 · G11→1 · G12→1 · G13→11 · G14→0 |
+| PostgreSQL core | P1→3 · P2→3 · P3→3 · P4→2 · P5→2 · P6→2 · P7→1 · P8→6 · P9→11 · P10→4 · P11→11 · P12→11 |
 | PostgreSQL analytics | A1→6 · A2→6 · A3→6 · A4→6 · A5→6 · A6→6 |
-| Node.js | N1→7 · N2→2 · N3→2 · N4→5 · N5→7 · N6→4 · N7→7 · N8→2 · N9→7 |
-| MongoDB | M1→2 · M2→2 · M3→2 · M4→5 |
-| React | R1→4 · R2→4 · R3→4 · R4→5 · R5→5 · R6→6 · R7→8 · R8→8 · R9→4 · R10→2 · R11→2 |
-| Redis | D1→7 · D2→7 · D3→7 |
-| Microservice | S1→9 · S2→9 · S3→9 · S4→9 |
+| Node.js | N1→11 · N2→7 · N3→7 · N4→8 · N5→11 · N6→8 · N7→11 · N8→7 · N9→11 |
+| MongoDB | M1→7 · M2→7 · M3→7 · M4→8 |
+| React | R1→9 · R2→9 · R3→9 · R4→10 · R5→10 · R6→10 · R7→9 · R8→9 · R9→9 · R10→9 · R11→9 |
+| Redis | D1→11 · D2→11 · D3→11 |
+| Microservice | S1→13 · S2→13 · S3→13 · S4→13 |
 
 ## Mục tiêu học tập
 

@@ -20,3 +20,5 @@
 | P1-AT14 | Manual | `EXPLAIN (ANALYZE, BUFFERS)` query search | Dùng index, không Seq Scan trên `trips`/`trip_seats` | P7 | ⬜ |
 | P1-AT15 | Integration | Module khác import phần không export / truy vấn bảng của `catalog` | Kiểm tra ranh giới fail | G11 | ⬜ |
 | P1-AT16 | Review | Đọc `cmd/server/main.go` | Thấy đủ đồ thị dependency, không dùng DI framework | G12 | ⬜ |
+| P1-AT17 | Integration | Request không có `X-Request-ID` | Response có `X-Request-ID` 32 hex; access log có `request_id` trùng | P1-NFR3 | ⬜ |
+| P1-AT18 | Integration | Handler panic | 500 JSON, request tiếp theo vẫn 200 | P1-NFR3 | ⬜ |

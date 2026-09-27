@@ -142,37 +142,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
 
-# ---------------------------------------------------------------------------
-# snaptix — Go / Bazel
-# ---------------------------------------------------------------------------
-# Bazel output symlinks (bazel-bin, bazel-out, bazel-testlogs, bazel-<workspace>)
-bazel-*
-# Go test coverage & profiles
-*.out
-*.test
-*.prof
-cover.html
-# Bazel: cấu hình cá nhân (try-import trong .bazelrc)
-.bazelrc.user
-# Go build output
-/com/tm/server/bin/
-# `go build ./...` ghi binary ra cwd khi pattern chỉ khớp đúng một package main
-# (hiện chỉ có tools/smoke) — không commit.
-/com/tm/server/smoke
-
-# ---------------------------------------------------------------------------
-# snaptix — local / editor / OS
-# ---------------------------------------------------------------------------
-.DS_Store
-.idea/
-.vscode/*
-!.vscode/extensions.json
 # Python cache (script trong .claude/scripts)
 __pycache__/
-# Claude Code: cài đặt cá nhân không commit (settings.json của project vẫn commit)
-.claude/settings.local.json
-# k6 kết quả chạy tạm (kết quả chính thức lưu có chủ đích trong loadtest/results)
-loadtest/*.tmp.json
-
 # Claude Code execute-all runtime state
 .claude/state/

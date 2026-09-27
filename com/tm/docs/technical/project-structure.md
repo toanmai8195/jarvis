@@ -5,11 +5,10 @@
 ```
 snaptix/
 ├── README.md
-├── Makefile                  # make up / migrate / test (local-setup.md) — logic ở scripts/
 ├── .github/workflows/        # CI chạy theo đường dẫn thay đổi
 ├── deploy/                   # docker-compose, observability — dùng cho cả server lẫn app
 ├── loadtest/                 # kịch bản k6, kết quả theo phase
-├── scripts/                  # script kiểm tra repo (cấu trúc, compose), script CI (ci-*.sh), script của make (migrate.sh, test-all.sh) + test *_test.sh
+├── scripts/                  # migrate.sh (goose pin), check-*.sh (cấu trúc, .gitignore, migration), test/
 └── com/tm/
     ├── server/               # Go — Bazel workspace
     ├── app/                  # Node.js + React — pnpm workspace
@@ -35,18 +34,13 @@ com/tm/server/
 ├── BUILD.bazel               # target gazelle + directive, platform linux_amd64 / linux_arm64
 ├── .bazelrc                  # pure Go, CGO off, --config=linux-arm64|amd64, profile release
 ├── .bazelversion             # 8.7.0 (rules_oci chưa hỗ trợ Bazel 9)
-├── .golangci.yml             # golangci-lint v2 (pin v2.14.0), preset standard + gofmt
-├── tools/
-│   ├── rules/
-│   │   ├── BUILD.bazel           # toolchain bsdtar cho `bazel run <name>_docker` khi cross-build
-│   │   ├── com_tm_container.bzl  # macro com_tm_go_image: binary + OCI image
-│   │   └── com_tm_container_test.bzl  # unit test (skylib) cho macro
-│   └── smoke/                # binary mẫu tối thiểu kiểm chứng workspace + image
+├── tools/rules/
+│   └── com_tm_container.bzl  # macro com_tm_go_image: binary + OCI image
 ├── go.mod, go.sum            # MỘT module cho toàn bộ Go
 ├── api/
 │   └── core.openapi.yaml     # hợp đồng API nội bộ của core
 ├── db/
-│   ├── core/migrations/      # goose
+│   ├── core/migrations/      # goose, NNNNN_ten.sql (scripts/migrate.sh)
 │   └── analytics/migrations/
 ├── pkg/                      # dùng chung GIỮA các service (giữ nhỏ)
 │   ├── postgres/             # pool, WithTx, retry 40001/40P01
@@ -63,8 +57,7 @@ com/tm/server/
     │       ├── wallet/           # module: account, ledger, topup, refund
     │       ├── money/            # value type VND
     │       ├── idempotency/      # dùng bởi wallet, booking
-    │       ├── config/           # đọc + validate env CORE_* (P0-T07)
-    │       └── httpx/            # router, middleware, map lỗi → HTTP; /healthz, /readyz, /metrics
+    │       └── httpx/            # router, middleware, map lỗi → HTTP
     └── stats-worker/
         ├── cmd/worker/main.go
         └── internal/
@@ -81,9 +74,8 @@ com/tm/server/
 | Sau khi thêm file | `bazel run //:gazelle` |
 | Code sinh ra (sqlc, oapi-codegen) | Commit vào repo |
 | Test cần Docker | `tags = ["requires-docker", "requires-network"]`, `size = "large"` |
-| Image | Macro `com_tm_go_image` (`tools/rules/com_tm_container.bzl`), gazelle `map_kind` cho mọi `go_binary`. Sinh `<name>`, `<name>_image`, `<name>_docker`, `<name>_push` khi có `repository`. Base distroless pin digest (`gcr.io/distroless/static-debian12:nonroot`), layer binary chỉ gồm `/app/<name>` (không đóng gói runfiles). Target image `target_compatible_with` Linux → `bazel build //...` trên macOS bỏ qua (SKIPPED) image, vẫn build binary/test |
-| Tên image | Binary của service: thêm attr `image = "<service>-<binary>"` vào lời gọi `com_tm_go_image` trong BUILD (Gazelle giữ attr này) → tag `com.tm.go.<service>-<binary>:v1.0.0`, ví dụ `//services/core/cmd/server` → `com.tm.go.core-server:v1.0.0`, `//services/core/cmd/worker` → `com.tm.go.core-worker:v1.0.0` (tránh trùng với `services/stats-worker/cmd/worker`). Không đặt `image` (tool như `tools/smoke`) → `com.tm.go.<name>:v1.0.0`. Tên target (`server_docker`) và entrypoint (`/app/server`) luôn theo `name` do Gazelle đặt |
-| Build image | `bazel run --config=linux-arm64 //path:<name>_docker` (Apple Silicon) · `--config=linux-amd64` (server x86). Ví dụ: `//tools/smoke:smoke_docker` → `com.tm.go.smoke:v1.0.0` |
+| Image | Macro `com_tm_go_image` (`tools/rules/com_tm_container.bzl`), gazelle `map_kind` cho mọi `go_binary`. Sinh `<name>`, `<name>_image`, `<name>_docker` (tag `com.tm.go.<image_name>:v1.0.0`, `image_name` mặc định = name), `<name>_push` khi có `repository`. Base distroless pin digest, chạy user non-root 65532. Core: `core-server`, `core-worker` |
+| Build image | `bazel run --config=linux-arm64 //path:<name>_docker` (Apple Silicon) · `--config=linux-amd64` (server x86) |
 | IDE / gopls | Dùng `go.mod` trực tiếp, không cần `GOPACKAGESDRIVER`. Code phải build được bằng cả `go` lẫn Bazel |
 
 ### Module trong core (modular monolith)
@@ -125,8 +117,7 @@ func NewService(pool *pgxpool.Pool, wallet debiter) *Service { // nhận interfa
 
 ```go
 // cmd/server/main.go — wiring thủ công, không DI framework
-cfg, err := config.Load(os.LookupEnv)            // lỗi → log ERROR nêu tên biến, exit 1
-pool, err := pgxpool.NewWithConfig(ctx, cfg.DB) // pool lười: không Ping lúc khởi động, /readyz báo trạng thái PG
+pool := postgres.MustConnect(ctx, cfg.DatabaseURL)
 walletSvc := wallet.NewService(pool)
 bookingSvc := booking.NewService(pool, walletSvc)
 catalogSvc := catalog.NewService(pool)
@@ -154,7 +145,7 @@ router := httpx.NewRouter(catalog.Routes(catalogSvc), booking.Routes(bookingSvc)
 
 ```
 com/tm/app/
-├── package.json              # tên snaptix-app; script gốc build/test/lint/typecheck (pnpm --recursive --if-present), dev thêm --parallel
+├── package.json              # script gốc dev/build/test/lint/typecheck (pnpm --recursive --if-present)
 ├── pnpm-workspace.yaml
 ├── pnpm-lock.yaml
 ├── api/
@@ -173,9 +164,8 @@ com/tm/app/
 | Việc | Công cụ |
 |---|---|
 | Dependency | pnpm workspace (`apps/*`, `packages/*`), một lockfile; `packageManager: pnpm@11.18.0`, Node ≥ 22 |
-| Chạy script | Gốc: `pnpm build`/`test`/`lint`/`typecheck` (mọi package, thứ tự topo, bỏ qua package thiếu script), `pnpm dev` (song song); một app: `pnpm --filter <app> <script>`; app và mọi package nó phụ thuộc: `pnpm --filter "<app>..." <script>` |
 | Dev BFF | `tsx watch` |
-| Build BFF | `tsc --noEmit` (kiểm type) + `tsup` (esbuild) → `dist/` |
+| Build BFF | `tsc --noEmit` (kiểm type, TypeScript 6 strict) + `tsup` (esbuild) → `dist/server.js` ESM |
 | Build web | Vite |
 | Test | Vitest, Testing Library, Playwright |
 | Image BFF | Dockerfile multi-stage + `pnpm deploy --filter bff --prod` |
@@ -185,16 +175,10 @@ com/tm/app/
 
 ```
 apps/bff/src/
-├── instrumentation.ts        # entry OTel, nạp TRƯỚC server.ts bằng `node --import` / `tsx watch --import` (P0-T12)
-├── server.ts                 # entry: đọc config → buildApp → listen; graceful shutdown (P0-T13)
-├── app.ts                    # buildApp(opts): Fastify + logger + request ID + đăng ký plugin/route (test dùng inject)
-├── logger.ts                 # pino JSON: time ISO, level chữ, msg, trace_id/span_id (mixin)
-├── request-id.ts             # X-Request-ID theo api.md, UUID v7
-├── plugins/                  # hạ tầng: config, mongo, redis, session, csrf, rate-limit, otel (dựng NodeSDK), error-handler
-├── core-client/              # gọi core bằng fetch (undici): timeout; retry, circuit breaker (P2-T05)
-│   └── client.ts             # createCoreClient: ready() → GET /readyz (P0-T12)
+├── server.ts                 # khởi tạo Fastify, graceful shutdown
+├── plugins/                  # hạ tầng: mongo, redis, session, csrf, rate-limit, otel, error-handler
+├── core-client/              # undici: timeout, retry, circuit breaker
 └── routes/                   # vertical slice theo tài nguyên
-    ├── health.ts             # /healthz (sống; ?deep=1 gọi core /readyz), /readyz (ping MongoDB, hạn 2 s)
     ├── auth/
     ├── trips/
     ├── holds/
@@ -241,27 +225,16 @@ Kiểm tra cái giá của việc dùng chung: `bazel query 'rdeps(//..., //pkg/
 
 ## CI
 
-Một workflow `.github/workflows/ci.yml` (PR vào `main` và push lên `main`): job `changes` luôn chạy và tính vùng đổi, job `server` / `app` chỉ chạy khi vùng tương ứng đổi (`if`, không lọc bằng `paths:` — job skipped vẫn đạt khi làm required check). Logic nằm trong `scripts/ci-*.sh`, chạy lại cục bộ được (xem [local-setup](local-setup.md#build--kiểm-thử)).
+Workflow `.github/workflows/ci.yml` chỉ gọi script trong `scripts/ci/` — chạy y hệt ở local: `scripts/ci/run.sh repo|server|app [BASE]`.
 
 | Thay đổi | Chạy |
 |---|---|
-| `com/tm/server/**` | `golangci-lint run ./...` (v2.14.0, `.golangci.yml`) + `bazel test` các target bị ảnh hưởng (`scripts/ci-server.sh`) |
-| `com/tm/app/**` | `pnpm install --frozen-lockfile` → `pnpm --filter "...[origin/main]" --filter '!snaptix-app' --if-present run '/^(lint\|test\|build)$/'` → `git diff --exit-code pnpm-lock.yaml` (`scripts/ci-app.sh`, xem ghi chú dưới bảng) |
-| `.github/workflows/**`, `scripts/ci-*` | Cả hai job (để chạy thử thay đổi CI) |
-| `com/tm/server/api/**`, `com/tm/app/api/**` | Cả hai + sinh lại code và `git diff --exit-code` — *chưa có, thêm khi có codegen* |
-| `com/tm/docs/**` | Kiểm tra link markdown — *chưa có* |
-
-Base của diff: PR → merge-base với `origin/<nhánh đích>`; push lên `main` → `github.event.before` (base rỗng / 40 số 0 → chạy tất cả). Checkout `fetch-depth: 0`.
-
-Target Bazel bị ảnh hưởng (`scripts/ci-affected.sh`, G14): file đổi → label (`//<pkg>:<file>`; file `BUILD` đổi hoặc file bị xoá → `//<pkg>:all`), lọc label không phải target (`bazel query --keep_going`), rồi `tests(rdeps(//..., set(...)))` bỏ tag `manual`. File toàn cục (`MODULE.bazel`, `MODULE.bazel.lock`, `go.mod`, `go.sum`, `.bazelrc`, `.bazelversion`, `BUILD.bazel` gốc, mọi `*.bzl`) → `//...`. Không có target nào → bỏ qua `bazel test` (tránh `No test targets were found`, exit 4).
-
-App chạy **mọi** package (`--recursive --filter '!snaptix-app'`) khi `package.json` gốc, `pnpm-workspace.yaml`, `pnpm-lock.yaml` hoặc file CI đổi — filter `...[base]` + `!snaptix-app` khi đó không chọn package nào.
-
-Ghi chú lệnh pnpm (đã kiểm ở P0-T01b):
-- **Không** viết `pnpm --filter ... lint test build`: pnpm chỉ chạy script đầu tiên (`lint`) và coi `test build` là **đối số** của nó — lỗi bị che vì exit 0. Chạy nhiều script bằng regex: `run '/^(lint|test|build)$/'` (các script khớp chạy **đồng thời** trong cùng package, package vẫn theo thứ tự topo), hoặc gọi lần lượt từng lệnh nếu cần tuần tự.
-- `...[origin/main]`: package có file thay đổi so với `origin/main` **cộng mọi package phụ thuộc vào nó** (dependents). File chưa được git track không tính là thay đổi.
-- `--filter '!snaptix-app'`: loại package gốc (`com/tm/app/package.json`, tên `snaptix-app`) — khi `package.json` gốc đổi, root cũng bị chọn và script gốc sẽ tự chạy đệ quy lại cả workspace.
-- `--if-present`: không lỗi `ERR_PNPM_RECURSIVE_RUN_NO_SCRIPT` khi package được chọn không có script khớp. Filter không khớp package nào → in `No projects matched the filters`, exit 0; thêm `--fail-if-no-match` nếu muốn exit 1.
+| Mọi thay đổi | Job `repo`: check-structure, check-gitignore, check-migrations, test script |
+| `com/tm/server/**` | Job `server`: gazelle `-mode=diff`, golangci-lint v2.6.2, `bazel build //...`, `bazel test` các target bị ảnh hưởng (`scripts/ci/bazel-affected-tests.sh`, dựa trên `rdeps`) |
+| `com/tm/app/**` | Job `app`: `pnpm install --frozen-lockfile`, `pnpm --filter "...[BASE]" lint test build` |
+| `.github/**`, `scripts/ci/**` | Cả `server` và `app` |
+| `com/tm/server/api/**`, `com/tm/app/api/**` | Cả hai + sinh lại code và `git diff --exit-code` |
+| `com/tm/docs/**` | Kiểm tra link markdown |
 
 ---
 

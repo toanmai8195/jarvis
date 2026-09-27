@@ -7,7 +7,7 @@ Dùng bởi các skill task-detail, phase-detail, sumup.
     planning.py phase [N]          # chi tiết một phase (mặc định: phase hiện tại)
     planning.py sumup              # tổng kết toàn dự án
     planning.py validate [TASK_ID] # kiểm tra bước 0, exit 1 nếu chưa đạt
-    planning.py step [TASK_ID]     # task cần làm + bước tiếp theo (cho skill execute-task)
+    planning.py step [TASK_ID]     # task cần làm + bước tiếp theo (cho skill execute-all)
     planning.py guard              # PreToolUse hook (Edit/Write): chặn sửa code sai quy trình
     planning.py guard-bash         # PreToolUse hook (Bash): chặn commit/push sai quy trình
     planning.py mark ...           # thao tác checklist (xem cmd_mark)
@@ -25,6 +25,7 @@ HANDBOOK = ROOT / "com/tm/docs/technical/handbook"
 
 TASK_RE = re.compile(r"^- \[( |x)\] \*\*(P\d+-T\d+[a-z]?)\*\* (.*)$")
 STEP_RE = re.compile(r"^\s+- \[( |x)\] (\d)\. (.*)$")
+SUB_RE = re.compile(r"^\s+- \[( |x)\] 2\.(\d+) (.*)$")
 CHK_RE = re.compile(r"^- \[( |x)\] (.*)$")
 CH_TAG_RE = re.compile(r"\[([GPANMRDS]\d+)(?: [^\]]*)?\]")
 TC_ID_RE = re.compile(r"P\d+-T\d+[a-z]?-TC\d+")
@@ -80,10 +81,12 @@ def load_phase(d: Path, status):
             ws = line[4:].strip()
         elif m := TASK_RE.match(line):
             cur = {"id": m.group(2), "done": m.group(1) == "x", "desc": m.group(3), "ws": ws,
-                   "phase": n, "steps": [], "challenges": CH_TAG_RE.findall(m.group(3))}
+                   "phase": n, "steps": [], "subtasks": [], "challenges": CH_TAG_RE.findall(m.group(3))}
             tasks.append(cur)
         elif (m := STEP_RE.match(line)) and cur:
             cur["steps"].append({"n": int(m.group(2)), "done": m.group(1) == "x", "text": m.group(3)})
+        elif (m := SUB_RE.match(line)) and cur:
+            cur["subtasks"].append({"n": int(m.group(2)), "done": m.group(1) == "x", "text": m.group(3)})
 
     challenges = {}
     for r in table_rows(sec.get("Challenge", []), r"[GPANMRDS]\d+"):
@@ -381,7 +384,7 @@ def cmd_sumup():
 
 STEP_NAMES = {
     0: "Validate + tạo checklist con",
-    1: "Gen test case → chờ người dùng duyệt",
+    1: "Gen test case + kế hoạch subtask → review agent duyệt",
     2: "Code",
     3: "Agent tự viết unit test",
     4: "Build + chạy lại unit test",
@@ -391,7 +394,7 @@ STEP_NAMES = {
 
 
 def cmd_step(arg):
-    """Task cần làm và bước tiếp theo — dùng cho skill execute-task."""
+    """Task cần làm và bước tiếp theo — dùng cho skill execute-all."""
     phases, tasks = load_all()
     idx = next((i for i, t in enumerate(tasks) if t["id"].lower() == arg.lower()), None) if arg else current_index(tasks)
     if idx is None:
@@ -420,7 +423,10 @@ def cmd_step(arg):
         print("CHALLENGE: " + " | ".join(ch_line(c, phases) for c in t["challenges"]))
     print(f"BƯỚC TIẾP THEO: {step} — {STEP_NAMES[step]}")
     if step == 1 and tc_file.exists():
-        print("GHI CHÚ: test case đã viết, đang chờ người dùng duyệt.")
+        print("GHI CHÚ: test case đã viết, đang chờ review agent duyệt.")
+    if step == 2:
+        nxt = next((x for x in t["subtasks"] if not x["done"]), None)
+        print(f"SUBTASK TIẾP THEO: 2.{nxt['n']} — {nxt['text']}" if nxt else "SUBTASK: đã xong hết (hoặc chưa ghi) — đánh [x] bước 2")
     if step == 0:
         print("VALIDATE BƯỚC 0:")
         for ok, text in validate(phases, tasks, idx):
@@ -429,6 +435,9 @@ def cmd_step(arg):
         print("CHECKLIST CON:")
         for st in t["steps"]:
             print(f"- [{'x' if st['done'] else ' '}] {st['n']}. {st['text']}")
+            if st["n"] == 2:
+                for x in t["subtasks"]:
+                    print(f"    - [{'x' if x['done'] else ' '}] 2.{x['n']} {x['text']}")
 
 
 def _task_file(task_id):
@@ -446,6 +455,8 @@ def cmd_mark(argv):
     mark start <ID> <mô tả test case>      thêm checklist con 6 bước (bước 0)
     mark step <ID> <n> [nội dung mới]      tick bước n (có nội dung → thay text bước); n=5 tick cả dòng task
     mark tc <ID>                           đánh ✅ mọi test case của task
+    mark subs <ID> "<subtask 1>" "<subtask 2>" ...   ghi checklist 2.1, 2.2... dưới bước 2
+    mark sub <ID> <k>                      tick subtask 2.<k>
     mark phase <N> <⬜|🟨|✅>               đổi trạng thái phase trong planning/README.md
     """
     if len(argv) < 2:
@@ -465,10 +476,10 @@ def cmd_mark(argv):
             sys.exit(f"{tid} đã có checklist con")
         tc = " ".join(argv[2:]) or f"{tid}-TC01..TCnn"
         block = "\n".join([
-            f"  - [ ] 1. Test case: {tc} — đã được duyệt",
+            f"  - [ ] 1. Test case: {tc} + kế hoạch subtask — đã được duyệt",
             "  - [ ] 2. Code", "  - [ ] 3. Unit test", "  - [ ] 4. Build + unit test pass",
             "  - [ ] 5. Test case pass + handbook",
-            f"  - [ ] 6. Commit: `<type(scope): mô tả [{tid}]>` · Push: có/không"])
+            f"  - [ ] 6. Commit: `<type(scope): mô tả [{tid}]>` · Push: không (execute-all push khi đóng phase)"])
         text = text[:m.end()] + "\n" + block + text[m.end():]
     elif action == "step":
         n = int(argv[2])
@@ -486,6 +497,21 @@ def cmd_mark(argv):
         text = text[:m.end()] + seg + text[seg_end:]
         if n == 5:
             text = line_re.sub(lambda mm: mm.group(0).replace("- [ ]", "- [x]", 1), text, count=1)
+    elif action == "subs":
+        subs = argv[2:]
+        seg_end = text.find("\n- [", m.end()); seg_end = len(text) if seg_end == -1 else seg_end
+        seg = text[m.end():seg_end]
+        block = "".join(f"\n    - [ ] 2.{i} {x}" for i, x in enumerate(subs, 1))
+        seg = re.sub(r"(\n  - \[[ x]\] 2\. [^\n]*)", lambda mm: mm.group(1) + block, seg, count=1)
+        text = text[:m.end()] + seg + text[seg_end:]
+    elif action == "sub":
+        k = argv[2]
+        seg_end = text.find("\n- [", m.end()); seg_end = len(text) if seg_end == -1 else seg_end
+        seg = text[m.end():seg_end]
+        new = re.sub(rf"^(\s+- )\[ \]( 2\.{k} )", r"\1[x]\2", seg, count=1, flags=re.M)
+        if new == seg:
+            sys.exit(f"Subtask 2.{k} của {tid} không có hoặc đã tick")
+        text = text[:m.end()] + new + text[seg_end:]
     elif action == "tc":
         f = pdir / "tasks" / tid / "test-cases.md"
         s2 = re.sub(rf"^(\| {re.escape(tid)}-TC\d+ \|.*)\| ⬜ \|$", r"\1| ✅ |", f.read_text(), flags=re.M)
@@ -562,7 +588,7 @@ def cmd_guard():
     if not cur["steps"]:
         fails.append(f"Task {cur['id']} chưa có checklist con (chưa qua bước 0)")
     elif not (step1 and step1["done"]):
-        fails.append(f"Test case của {cur['id']} chưa được người dùng duyệt (bước 1 chưa [x])")
+        fails.append(f"Test case của {cur['id']} chưa được review agent duyệt (bước 1 chưa [x])")
     if not fails:
         sys.exit(0)
     reason = (f"[snaptix guard] Không được sửa code ({rel}) cho task {cur['id']}:\n"
@@ -635,7 +661,7 @@ def close_problems(phases, n):
 def auto_next(state):
     """Hành động tiếp theo của execute-all, suy ra từ planning + git (không tin state)."""
     phases, tasks = load_all()
-    until = state.get("until_phase", 8)
+    until = state.get("until_phase", 12)
     scope = [t for t in tasks if t["phase"] <= until]
     idx = current_index(scope)
     cur_phase = scope[idx]["phase"] if idx < len(scope) else until + 1
@@ -677,7 +703,7 @@ def sig(nxt):
 def cmd_auto(argv):
     """Chế độ execute-all:
 
-    auto start [UNTIL_PHASE]   bắt đầu / chạy tiếp (mặc định đến phase 8)
+    auto start [UNTIL_PHASE]   bắt đầu / chạy tiếp (mặc định đến phase 12)
     auto next                  hành động tiếp theo (ACTION: START|GEN_TC|APPROVE_TC|EXECUTE|COMMIT|COMMIT_CLOSE|CLOSE_PHASE|PUSH|FINAL_VERIFY|DONE|BLOCKED)
     auto wait <nhãn>           gọi ngay trước khi spawn subagent rồi kết thúc lượt chờ; đếm số lần thử
     auto close-check <N>       kiểm tra điều kiện đóng phase N (exit 1 nếu chưa đạt)
@@ -692,7 +718,7 @@ def cmd_auto(argv):
     rest = argv[1:]
     s = load_state()
     if action == "start":
-        s.update({"status": "running", "until_phase": int(rest[0]) if rest else s.get("until_phase", 8),
+        s.update({"status": "running", "until_phase": int(rest[0]) if rest else s.get("until_phase", 12),
                   "reason": None, "pending": None, "attempts": {}, "idle_stops": 0, "idle_sig": None})
         s.setdefault("started_at", git("log", "-1", "--format=%cI"))
         save_state(s)

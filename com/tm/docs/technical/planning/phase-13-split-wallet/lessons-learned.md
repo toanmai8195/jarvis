@@ -1,4 +1,4 @@
-# Lessons learned — Phase 6 — Thống kê (Go + PG analytics)
+# Lessons learned — Phase 13 — *(Tuỳ chọn)* Tách wallet thành service riêng
 
 > Viết **sau khi** đóng phase. Trung thực, cụ thể, có số liệu. Mục đích là để chính mình của 6 tháng sau đọc lại vẫn hiểu.
 
@@ -15,13 +15,10 @@
 
 | # | Kết quả | Cách đã giải | Link ADR / PR |
 |---|---|---|---|
-| P8 | | | |
-| A1 | | | |
-| A2 | | | |
-| A3 | | | |
-| A4 | | | |
-| A5 | | | |
-| A6 | | | |
+| S2 | | | |
+| S1 | | | |
+| S3 | | | |
+| S4 | | | |
 
 ## Điều làm tốt
 

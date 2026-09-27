@@ -1,4 +1,4 @@
-# Lessons learned — Phase 6 — Thống kê (Go + PG analytics)
+# Lessons learned — Phase 7 — BFF nền tảng & đăng nhập
 
 > Viết **sau khi** đóng phase. Trung thực, cụ thể, có số liệu. Mục đích là để chính mình của 6 tháng sau đọc lại vẫn hiểu.
 
@@ -15,13 +15,13 @@
 
 | # | Kết quả | Cách đã giải | Link ADR / PR |
 |---|---|---|---|
-| P8 | | | |
-| A1 | | | |
-| A2 | | | |
-| A3 | | | |
-| A4 | | | |
-| A5 | | | |
-| A6 | | | |
+| G10 | | | |
+| M1 | | | |
+| M2 | | | |
+| N3 | | | |
+| N2 | | | |
+| M3 | | | |
+| N8 | | | |
 
 ## Điều làm tốt
 
