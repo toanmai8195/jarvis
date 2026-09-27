@@ -185,10 +185,14 @@ com/tm/app/
 
 ```
 apps/bff/src/
-├── server.ts                 # khởi tạo Fastify, graceful shutdown
-├── plugins/                  # hạ tầng: mongo, redis, session, csrf, rate-limit, otel, error-handler
+├── server.ts                 # entry: đọc config → buildApp → listen; graceful shutdown (P0-T13)
+├── app.ts                    # buildApp(opts): Fastify + logger + request ID + đăng ký plugin/route (test dùng inject)
+├── logger.ts                 # pino JSON: time ISO, level chữ, msg
+├── request-id.ts             # X-Request-ID theo api.md, UUID v7
+├── plugins/                  # hạ tầng: config, mongo, redis, session, csrf, rate-limit, otel, error-handler
 ├── core-client/              # undici: timeout, retry, circuit breaker
 └── routes/                   # vertical slice theo tài nguyên
+    ├── health.ts             # /healthz (sống), /readyz (ping MongoDB, hạn 2 s)
     ├── auth/
     ├── trips/
     ├── holds/

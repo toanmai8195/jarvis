@@ -64,6 +64,16 @@ cd com/tm/app
 pnpm install --frozen-lockfile   # cài đúng theo pnpm-lock.yaml (lockfile lệch → ERR_PNPM_OUTDATED_LOCKFILE)
 pnpm dev                         # chạy song song script dev của mọi app (bff, web-client, web-admin)
 pnpm --filter bff dev            # chỉ một app
+
+# BFF (Fastify) — bff không tự đọc .env, nạp env vào shell trước (như core)
+cp apps/bff/.env.example apps/bff/.env   # lần đầu; sửa nếu cần
+set -a; . apps/bff/.env; set +a          # nạp MONGODB_URI, BFF_* vào shell
+pnpm --filter bff dev                    # tsx watch src/server.ts — sửa file trong src/ là tự chạy lại
+#    bff nghe 0.0.0.0:3000 — curl localhost:3000/healthz (sống), localhost:3000/readyz (ping MongoDB, hạn 2 s).
+#    bff khởi động được khi MongoDB chưa lên (client lười): /readyz trả 503 tới khi Mongo sẵn sàng.
+#    Log: pino JSON một dòng một object (time ISO, level chữ, msg, request_id), kể cả khi dev.
+pnpm --filter bff build                  # tsc --noEmit + tsup → apps/bff/dist/server.js (ESM)
+pnpm --filter bff start                  # node dist/server.js (cần env như trên)
 ```
 
 ## Biến môi trường
@@ -86,7 +96,10 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 | `OTEL_BSP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`, `OTEL_EXPORTER_OTLP_TIMEOUT` | core (mặc định `5000`, `60000`, `10000` ms: chu kỳ gửi span, chu kỳ gửi metric, hạn mỗi lần export) | `500`, `2000`, `1000` |
 | `ANALYTICS_DATABASE_URL` | stats-worker, bff | `postgres://snaptix:snaptix@localhost:5433/analytics` |
 | `REDIS_URL` | core, bff | `redis://localhost:6379` |
-| `MONGODB_URI` | bff | `mongodb://localhost:27017/snaptix` |
+| `MONGODB_URI` | bff (bắt buộc, URL `mongodb://` hoặc `mongodb+srv://`; thiếu/rỗng/sai → bff thoát `1` với log JSON `fatal` nêu tên biến, không in giá trị) | `mongodb://localhost:27017/snaptix` |
+| `BFF_PORT` | bff (mặc định `3000`; số nguyên `1..65535`, sai → lỗi cấu hình) | `3000` |
+| `BFF_HOST` | bff (mặc định `0.0.0.0`) | `0.0.0.0` |
+| `BFF_LOG_LEVEL` | bff (mặc định `info`; `trace` \| `debug` \| `info` \| `warn` \| `error` \| `fatal`, sai → lỗi cấu hình) | `info` |
 | `CORE_BASE_URL` | bff | `http://localhost:8080` |
 | `CORE_SERVICE_TOKEN` | bff, core | chuỗi ngẫu nhiên |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | bff | từ Google Cloud Console |

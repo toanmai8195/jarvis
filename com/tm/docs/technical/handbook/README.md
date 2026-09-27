@@ -39,6 +39,7 @@ handbook/
 | P0-T09 | Graceful shutdown: bắt SIGTERM, `http.Server.Shutdown` có timeout, đóng pool sau cùng | [phase-0/P0-T09.md](phase-0/P0-T09.md) |
 | P0-T10 | Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP | [phase-0/P0-T10.md](phase-0/P0-T10.md) |
 | P0-T10a | Image OCI cho core: macro `com_tm_go_image` cho `cmd/server`, `cmd/worker` | [phase-0/P0-T10a.md](phase-0/P0-T10a.md) |
+| P0-T11 | Skeleton `apps/bff` Fastify + TS (ESM, strict, `tsx`/`tsup`): plugin config, logger pino JSON, `/healthz`, `/readyz` | [phase-0/P0-T11.md](phase-0/P0-T11.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -105,6 +106,11 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `bazel/rules_oci`, `bazel/tar`, `docker` | P0-T10a | `tar` của tar.bzl mặc định đóng gói runfiles: tắt để layer chỉ còn binary | [P0-T10a.md](phase-0/P0-T10a.md#tar-của-tarbzl-mặc-định-đóng-gói-runfiles-tắt-để-layer-chỉ-còn-binary) |
 | `go/signal`, `go/slog`, `go/testing`, `go/package-layout` | P0-T10a | Worker skeleton: `run(ctx, log, sigs) int` tách khỏi `main`, không kéo pgx/http | [P0-T10a.md](phase-0/P0-T10a.md#worker-skeleton-runctx-log-sigs-int-tách-khỏi-main-không-kéo-pgxhttp) |
 | `docker`, `docker/compose`, `otel/collector` | P0-T10a | Chạy image core cạnh stack compose và kiểm kết quả thật | [P0-T10a.md](phase-0/P0-T10a.md#chạy-image-core-cạnh-stack-compose-và-kiểm-kết-quả-thật) |
+| `node/fastify`, `http/request-id` | P0-T11 | Request ID: `requestIdHeader: false` + `genReqId` tự đọc header | [P0-T11.md](phase-0/P0-T11.md#request-id-requestidheader-false--genreqid-tự-đọc-header) |
+| `node/fastify`, `node/pino`, `observability/log` | P0-T11 | Đổi khoá `reqId` → `request_id` bằng `LogController`, không dùng option deprecated | [P0-T11.md](phase-0/P0-T11.md#đổi-khoá-reqid--request_id-bằng-logcontroller-không-dùng-option-deprecated) |
+| `mongo/driver`, `ops/health` | P0-T11 | MongoDB driver 7: client lười, `serverSelectionTimeoutMS` ≤ hạn ping, `connect()` trước mỗi ping | [P0-T11.md](phase-0/P0-T11.md#mongodb-driver-7-client-lười-serverselectiontimeoutms--hạn-ping-connect-trước-mỗi-ping) |
+| `node/fastify`, `node/config`, `security` | P0-T11 | Config: validate hết, lỗi nêu tên biến, plugin bọc `fastify-plugin` | [P0-T11.md](phase-0/P0-T11.md#config-validate-hết-lỗi-nêu-tên-biến-plugin-bọc-fastify-plugin) |
+| `node/tooling`, `node/pnpm`, `ts/config` | P0-T11 | Toolchain TS: TypeScript 6.0 (không 7), tsup ESM, tsx watch, pnpm 11 `allowBuilds` | [P0-T11.md](phase-0/P0-T11.md#toolchain-ts-typescript-60-không-7-tsup-esm-tsx-watch-pnpm-11-allowbuilds) |
 
 ## Mẫu một file
 

@@ -113,3 +113,14 @@ Ngoài phạm vi (ghi lại, không làm):
 - **Worker skeleton** chưa có config/env/OTel/pool — P4-T08/P6-T01 thêm, cùng hạn dừng có timeout (như server) khi có job.
 - **CI chưa build image**: G14 giữ 🟨; CI thật kiểm khi đóng phase. Có thể cân nhắc job build `--config=linux-amd64 //services/...:*_image` trên runner Linux (ngoài phạm vi).
 - **Chạy TC trên zsh**: `$SL:server_docker` bị zsh hiểu là modifier `:s` → nhãn hỏng; các TC04–TC17 chạy bằng `/bin/bash` (prep hỗ trợ bash 3.2).
+
+## P0-T11
+
+- **P0-T13 (graceful shutdown bff)**: khi `tsx watch` restart, tsx in `Previous process hasn't exited yet. Force killing...` sau 5 s, vì process cũ không tự thoát khi nhận tín hiệu tsx gửi. P0-T13 nên kiểm lại sau khi có handler SIGTERM (dùng quy ước `shutdown_step` và exit code như core, xem ghi chú P0-T09). Hiện chỉ plugin mongo có hook `onClose` đóng client.
+- **P0-T12**: `/readyz` hiện chỉ ping MongoDB. `trace_id` trong log, gọi core, `?deep=1` chưa làm. Header `X-Request-ID` được gắn ở hook `onRequest` gốc (`src/app.ts`). Khi thêm OTel, nên đưa `trace_id` vào log bằng `mixin` của pino hoặc `LogController`.
+- **P0-T15**: `tsconfig.json`, `eslint.config.js`, `vitest.config.ts` đang nằm riêng trong `apps/bff` (A8). Khi có `packages/config` thì chuyển sang dùng bản chung. Script `lint` là `eslint .`, **không** có `--max-warnings=0`, vì dòng pnpm in lệnh ra chứa chữ "warning" làm grep TC05 đếm sai. Nếu muốn chặn warning thì đặt rule ở mức `error` trong config.
+- **Môi trường**: `~/.local/bin/pnpm` là shim corepack, chọn bản pnpm theo cwd. Chạy `pnpm --dir com/tm/app …` từ gốc repo sẽ dùng pnpm 12.6.0 rồi báo `ERR_PNPM_BAD_PM_VERSION`. Các script (`test-all.sh`, `ci-app.sh`) đều `cd com/tm/app` trước nên không bị. TC17 đã chạy với cwd `com/tm/app`.
+- **`pnpm ignored-builds`** (pnpm 11.18) in `Cannot identify as no node_modules found` dù `node_modules` có đủ. Hiện chưa rõ nguyên nhân, nhưng lệnh không liệt kê package nào chưa duyệt, và `install --frozen-lockfile` sạch.
+- **`/healthz/` (có `/` cuối) trả 404** (TC14 ghi nhận). Fastify 5 mặc định `ignoreTrailingSlash: false`.
+- **Quy trình**: trong bước 5, agent lỡ tạo `com/tm/app/apps/bff/tsconfig.tc-notypes.json` bằng `node -e` qua Bash (vi phạm quy tắc chỉ ghi bằng Edit/Write), rồi xoá ngay. File không có trong diff của task.
+- **CI**: `scripts/ci-app.sh origin/main` trên working tree chưa commit fail ở bước `git diff --exit-code pnpm-lock.yaml`, vì lockfile mới chưa commit. Sau khi commit thì bước này pass. P0-AT05/P0-AT11 kiểm trên CI thật khi đóng phase.
