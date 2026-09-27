@@ -185,14 +185,16 @@ com/tm/app/
 
 ```
 apps/bff/src/
+├── instrumentation.ts        # entry OTel, nạp TRƯỚC server.ts bằng `node --import` / `tsx watch --import` (P0-T12)
 ├── server.ts                 # entry: đọc config → buildApp → listen; graceful shutdown (P0-T13)
 ├── app.ts                    # buildApp(opts): Fastify + logger + request ID + đăng ký plugin/route (test dùng inject)
-├── logger.ts                 # pino JSON: time ISO, level chữ, msg
+├── logger.ts                 # pino JSON: time ISO, level chữ, msg, trace_id/span_id (mixin)
 ├── request-id.ts             # X-Request-ID theo api.md, UUID v7
-├── plugins/                  # hạ tầng: config, mongo, redis, session, csrf, rate-limit, otel, error-handler
-├── core-client/              # undici: timeout, retry, circuit breaker
+├── plugins/                  # hạ tầng: config, mongo, redis, session, csrf, rate-limit, otel (dựng NodeSDK), error-handler
+├── core-client/              # gọi core bằng fetch (undici): timeout; retry, circuit breaker (P2-T05)
+│   └── client.ts             # createCoreClient: ready() → GET /readyz (P0-T12)
 └── routes/                   # vertical slice theo tài nguyên
-    ├── health.ts             # /healthz (sống), /readyz (ping MongoDB, hạn 2 s)
+    ├── health.ts             # /healthz (sống; ?deep=1 gọi core /readyz), /readyz (ping MongoDB, hạn 2 s)
     ├── auth/
     ├── trips/
     ├── holds/

@@ -132,7 +132,13 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
   - [x] 4. Build + unit test pass
   - [x] 5. Test case pass + handbook
   - [x] 6. Commit: `feat(bff): skeleton apps/bff Fastify + TS ESM strict — plugin config, logger pino JSON request_id, X-Request-ID, mongo client lười, /healthz, /readyz; tsx dev, tsup build, Vitest, ESLint [P0-T11]` · Push: không (execute-all push khi đóng phase)
-- [ ] **P0-T12** OTel cho Node, gọi thử `core /healthz` để kiểm tra trace xuyên service `[G10]`
+- [x] **P0-T12** OTel cho Node, gọi thử `core /healthz` để kiểm tra trace xuyên service `[G10]`
+  - [x] 1. Test case: P0-T12-TC01..TC23 — đã được duyệt (review agent, execute-all)
+  - [x] 2. Code
+  - [x] 3. Unit test
+  - [x] 4. Build + unit test pass
+  - [x] 5. Test case pass + handbook
+  - [x] 6. Commit: `feat(bff): OTel Node — instrumentation.ts nạp bằng --import (http + @fastify/otel + undici), OTLP/HTTP, log trace_id/span_id, /healthz?deep=1 gọi core /readyz cho trace bff → core → PG, CORE_BASE_URL [P0-T12][G10]` · Push: không (execute-all push khi đóng phase)
 - [ ] **P0-T13** Graceful shutdown Fastify (`close` hooks)
 
 ### web
@@ -148,7 +154,7 @@ Dựng khung monorepo, hạ tầng local, CI và observability để mọi phase
 | # | Công nghệ | Challenge | Bối cảnh | Hướng giải | Hoàn thành khi | Trạng thái |
 |---|---|---|---|---|---|---|
 | G3 | Golang | Graceful shutdown | Deploy khi đang có giao dịch | Bắt SIGTERM, ngừng nhận request, chờ in-flight, đóng pool theo thứ tự | Rolling deploy dưới tải không mất/không lỗi request | 🟨 |
-| G10 | Golang | Observability | Debug trên nhiều service | OpenTelemetry trace, slog JSON, Prometheus metrics | Một trace hiển thị đủ BFF → core → PG | 🟨 |
+| G10 | Golang | Observability | Debug trên nhiều service | OpenTelemetry trace, slog JSON, Prometheus metrics | Một trace hiển thị đủ BFF → core → PG | ✅ |
 | G14 | Golang | Monorepo Go với Bazel | `com/tm/server` nhiều service + thư viện | rules_go + Gazelle + bzlmod, một `go.mod`, visibility, test theo target bị ảnh hưởng | Code build được bằng cả `go` và Bazel; CI chỉ test target bị ảnh hưởng | 🟨 |
 
 ## Definition of Done

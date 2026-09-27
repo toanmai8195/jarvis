@@ -40,6 +40,7 @@ handbook/
 | P0-T10 | Tích hợp OpenTelemetry SDK trong `pkg/otelx`, export OTLP | [phase-0/P0-T10.md](phase-0/P0-T10.md) |
 | P0-T10a | Image OCI cho core: macro `com_tm_go_image` cho `cmd/server`, `cmd/worker` | [phase-0/P0-T10a.md](phase-0/P0-T10a.md) |
 | P0-T11 | Skeleton `apps/bff` Fastify + TS (ESM, strict, `tsx`/`tsup`): plugin config, logger pino JSON, `/healthz`, `/readyz` | [phase-0/P0-T11.md](phase-0/P0-T11.md) |
+| P0-T12 | OTel cho Node, gọi thử core để kiểm tra trace xuyên service (`/healthz?deep=1` → core `/readyz` → PG) | [phase-0/P0-T12.md](phase-0/P0-T12.md) |
 
 ## Chỉ mục theo chủ đề
 
@@ -111,6 +112,14 @@ Tag gợi ý: `go/channel` · `go/errgroup` · `go/context` · `go/generics` · 
 | `mongo/driver`, `ops/health` | P0-T11 | MongoDB driver 7: client lười, `serverSelectionTimeoutMS` ≤ hạn ping, `connect()` trước mỗi ping | [P0-T11.md](phase-0/P0-T11.md#mongodb-driver-7-client-lười-serverselectiontimeoutms--hạn-ping-connect-trước-mỗi-ping) |
 | `node/fastify`, `node/config`, `security` | P0-T11 | Config: validate hết, lỗi nêu tên biến, plugin bọc `fastify-plugin` | [P0-T11.md](phase-0/P0-T11.md#config-validate-hết-lỗi-nêu-tên-biến-plugin-bọc-fastify-plugin) |
 | `node/tooling`, `node/pnpm`, `ts/config` | P0-T11 | Toolchain TS: TypeScript 6.0 (không 7), tsup ESM, tsx watch, pnpm 11 `allowBuilds` | [P0-T11.md](phase-0/P0-T11.md#toolchain-ts-typescript-60-không-7-tsup-esm-tsx-watch-pnpm-11-allowbuilds) |
+| `otel/node`, `node/esm`, `node/tooling` | P0-T12 | Khởi tạo SDK bằng entry riêng nạp qua `node --import` | [P0-T12.md](phase-0/P0-T12.md#khởi-tạo-sdk-bằng-entry-riêng-nạp-qua-node---import) |
+| `otel/node`, `node/fastify`, `otel/semconv` | P0-T12 | Ba instrumentation, mỗi cái một việc: http (SERVER), `@fastify/otel` (route), undici (CLIENT) | [P0-T12.md](phase-0/P0-T12.md#ba-instrumentation-mỗi-cái-một-việc-http-server-fastifyotel-route-undici-client) |
+| `otel/node`, `otel/resource`, `observability/log` | P0-T12 | `NodeSDK`: resource mặc định trong code, env đè; diag về pino; tắt OTLP logs | [P0-T12.md](phase-0/P0-T12.md#nodesdk-resource-mặc-định-trong-code-env-đè-diag-về-pino-tắt-otlp-logs) |
+| `node/pino`, `observability/log`, `otel/context` | P0-T12 | `trace_id`/`span_id` trong log pino bằng `mixin` | [P0-T12.md](phase-0/P0-T12.md#trace_idspan_id-trong-log-pino-bằng-mixin) |
+| `node/fetch`, `node/undici`, `ops/health` | P0-T12 | `/healthz?deep=1` gọi core `/readyz` một lần, hạn 2 s, bằng `fetch` | [P0-T12.md](phase-0/P0-T12.md#healthzdeep1-gọi-core-readyz-một-lần-hạn-2-s-bằng-fetch) |
+| `node/vitest`, `otel/testing` | P0-T12 | Test OTel trong một process: SDK thật + exporter in-memory + import động | [P0-T12.md](phase-0/P0-T12.md#test-otel-trong-một-process-sdk-thật--exporter-in-memory--import-động) |
+| `node/pnpm` | P0-T12 | pnpm 11 + exporter proto: duyệt `protobufjs` bằng `false` | [P0-T12.md](phase-0/P0-T12.md#pnpm-11--exporter-proto-duyệt-protobufjs-bằng-false) |
+| `observability/prometheus`, `otel/metrics` | P0-T12 | Metric mới xuất hiện với giá trị đã > 0 thì `rate()` = 0 | [P0-T12.md](phase-0/P0-T12.md#metric-mới-xuất-hiện-với-giá-trị-đã--0-thì-rate--0) |
 
 ## Mẫu một file
 

@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { buildApp } from './app.js';
 import { createLogger } from './logger.js';
 import { loadConfig } from './plugins/config.js';
-import type { Pinger } from './routes/health.js';
+import type { CoreReadiness, Pinger } from './routes/health.js';
 
 const UUID7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const config = loadConfig({ MONGODB_URI: 'mongodb://tcuser:tc-pw-SECRET@127.0.0.1:1/snaptix' });
@@ -24,14 +24,32 @@ function fakePinger(impl: () => Promise<void> = async () => {}): Pinger & { call
 
 const apps: Array<Awaited<ReturnType<typeof buildApp>>> = [];
 
-async function setup(pinger: Pinger, readyTimeoutMs?: number) {
+/** Core giả đếm số lần gọi `ready`; `impl` quyết định ok / lỗi / treo. */
+function fakeCore(impl: () => Promise<void> = async () => {}): CoreReadiness & { calls: number; timeouts: number[] } {
+  const c = {
+    calls: 0,
+    timeouts: [] as number[],
+    ready: (ms: number) => {
+      c.calls++;
+      c.timeouts.push(ms);
+      return impl();
+    },
+  };
+  return c;
+}
+
+async function setup(
+  pinger: Pinger,
+  readyTimeoutMs?: number,
+  extra: { core?: CoreReadiness; coreTimeoutMs?: number } = {},
+) {
   const lines: LogLine[] = [];
   const logger = createLogger('info', {
     write: (s: string) => {
       lines.push(JSON.parse(s) as LogLine);
     },
   });
-  const app = await buildApp({ config, logger, pinger, readyTimeoutMs });
+  const app = await buildApp({ config, logger, pinger, readyTimeoutMs, core: extra.core ?? fakeCore(), coreTimeoutMs: extra.coreTimeoutMs });
   apps.push(app);
   return { app, lines };
 }
@@ -55,6 +73,72 @@ describe('/healthz', () => {
     const { app } = await setup(fakePinger());
     expect((await app.inject({ method: 'HEAD', url: '/healthz' })).statusCode).toBe(200);
     expect((await app.inject({ method: 'POST', url: '/healthz' })).statusCode).toBe(404);
+  });
+});
+
+describe('/healthz?deep=1 (gọi core)', () => {
+  it('không deep, deep=0, deep=true, x=1 → 200 {"status":"ok"}, không gọi core', async () => {
+    const core = fakeCore();
+    const { app } = await setup(fakePinger(), undefined, { core });
+    for (const url of ['/healthz', '/healthz?deep=0', '/healthz?deep=true', '/healthz?x=1', '/healthz?deep=']) {
+      const res = await app.inject({ method: 'GET', url });
+      expect(res.statusCode, url).toBe(200);
+      expect(res.json(), url).toEqual({ status: 'ok' });
+    }
+    expect(core.calls).toBe(0);
+  });
+
+  it('deep=1, core ok → 200 {"status":"ok","core":"ok"}, gọi core đúng 1 lần với timeout 2000 ms mặc định', async () => {
+    const core = fakeCore();
+    const pinger = fakePinger();
+    const { app } = await setup(pinger, undefined, { core });
+    const res = await app.inject({ method: 'GET', url: '/healthz?deep=1' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ status: 'ok', core: 'ok' });
+    expect(core.calls).toBe(1);
+    expect(core.timeouts).toEqual([2000]);
+    expect(pinger.calls).toBe(0);
+  });
+
+  it('deep=1, core lỗi → 503 {"status":"unavailable","core":"unavailable"}, gọi 1 lần, log warn có request_id + loại lỗi', async () => {
+    const core = fakeCore(async () => {
+      throw new TypeError('fetch failed', { cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }) });
+    });
+    const { app, lines } = await setup(fakePinger(), undefined, { core });
+    const res = await app.inject({ method: 'GET', url: '/healthz?deep=1', headers: { 'x-request-id': 'deep-503' } });
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ status: 'unavailable', core: 'unavailable' });
+    expect(res.headers['x-request-id']).toBe('deep-503');
+    expect(core.calls).toBe(1);
+    const warn = lines.find((l) => l.level === 'warn');
+    expect(warn).toMatchObject({
+      request_id: 'deep-503',
+      msg: 'healthz: core unavailable',
+      error_type: 'TypeError',
+      error: 'fetch failed',
+      error_cause: 'ECONNREFUSED',
+    });
+    expect(JSON.stringify(warn)).not.toMatch(/"stack"/);
+  });
+
+  it('deep=1, core treo → 503 trong timeout ngắn truyền vào, không chờ core', async () => {
+    const core = fakeCore(() => new Promise<void>(() => {}));
+    const { app } = await setup(fakePinger(), undefined, { core, coreTimeoutMs: 50 });
+    const t0 = performance.now();
+    const res = await app.inject({ method: 'GET', url: '/healthz?deep=1' });
+    const elapsed = performance.now() - t0;
+    expect(res.statusCode).toBe(503);
+    expect(res.json()).toEqual({ status: 'unavailable', core: 'unavailable' });
+    expect(elapsed).toBeGreaterThanOrEqual(45);
+    expect(elapsed).toBeLessThan(1000);
+    expect(core.timeouts).toEqual([50]);
+  });
+
+  it('/readyz không gọi core (chỉ ping MongoDB)', async () => {
+    const core = fakeCore();
+    const { app } = await setup(fakePinger(), undefined, { core });
+    expect((await app.inject({ method: 'GET', url: '/readyz' })).statusCode).toBe(200);
+    expect(core.calls).toBe(0);
   });
 });
 

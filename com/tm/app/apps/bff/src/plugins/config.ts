@@ -9,11 +9,14 @@ export interface Config {
   port: number;
   host: string;
   logLevel: LogLevel;
+  /** Gốc URL của core, không có `/` cuối, vd `http://localhost:8080`. */
+  coreBaseUrl: string;
 }
 
 export const DEFAULT_PORT = 3000;
 export const DEFAULT_HOST = '0.0.0.0';
 export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
+export const DEFAULT_CORE_BASE_URL = 'http://localhost:8080';
 
 /** Một biến sai: chỉ có tên và lý do, không bao giờ chứa giá trị (có thể là mật khẩu). */
 export interface ConfigProblem {
@@ -41,6 +44,30 @@ const MONGO_SCHEMES = ['mongodb://', 'mongodb+srv://'];
 
 function isLogLevel(v: string): v is LogLevel {
   return (LOG_LEVELS as readonly string[]).includes(v);
+}
+
+/**
+ * Lý do URL HTTP không hợp lệ, hoặc `undefined` nếu hợp lệ: phải parse được,
+ * scheme `http:`/`https:`, có host, không có userinfo (mật khẩu trong URL sẽ
+ * lọt vào log/span). Không trả giá trị để lỗi không lộ nội dung biến.
+ */
+export function httpUrlProblem(raw: string): string | undefined {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return 'must be an http:// or https:// URL';
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+    return 'must be an http:// or https:// URL';
+  }
+  if (u.hostname === '') {
+    return 'must have a host';
+  }
+  if (u.username !== '' || u.password !== '') {
+    return 'must not contain credentials';
+  }
+  return undefined;
 }
 
 /**
@@ -80,10 +107,16 @@ export function loadConfig(env: Env): Config {
     }
   }
 
+  const coreBaseUrl = (env.CORE_BASE_URL || DEFAULT_CORE_BASE_URL).replace(/\/+$/, '');
+  const coreProblem = httpUrlProblem(coreBaseUrl);
+  if (coreProblem) {
+    problems.push({ name: 'CORE_BASE_URL', reason: coreProblem });
+  }
+
   if (problems.length > 0) {
     throw new ConfigError(problems);
   }
-  return { mongodbUri: uri, port, host, logLevel };
+  return { mongodbUri: uri, port, host, logLevel, coreBaseUrl };
 }
 
 declare module 'fastify' {

@@ -16,12 +16,13 @@ function problemsOf(env: Record<string, string | undefined>): ConfigError {
 }
 
 describe('loadConfig', () => {
-  it('giá trị mặc định: BFF_PORT 3000, BFF_HOST 0.0.0.0, BFF_LOG_LEVEL info', () => {
+  it('giá trị mặc định: BFF_PORT 3000, BFF_HOST 0.0.0.0, BFF_LOG_LEVEL info, CORE_BASE_URL http://localhost:8080', () => {
     expect(loadConfig({ MONGODB_URI: URI })).toEqual({
       mongodbUri: URI,
       port: 3000,
       host: '0.0.0.0',
       logLevel: 'info',
+      coreBaseUrl: 'http://localhost:8080',
     });
   });
 
@@ -32,13 +33,36 @@ describe('loadConfig', () => {
         BFF_PORT: '65535',
         BFF_HOST: '127.0.0.1',
         BFF_LOG_LEVEL: 'debug',
+        CORE_BASE_URL: 'https://core.internal:8443/',
       }),
     ).toEqual({
       mongodbUri: 'mongodb+srv://u:p@cluster.example.net/db',
       port: 65535,
       host: '127.0.0.1',
       logLevel: 'debug',
+      coreBaseUrl: 'https://core.internal:8443',
     });
+  });
+
+  it('CORE_BASE_URL rỗng → dùng mặc định http://localhost:8080', () => {
+    expect(loadConfig({ MONGODB_URI: URI, CORE_BASE_URL: '' }).coreBaseUrl).toBe('http://localhost:8080');
+  });
+
+  it.each([
+    ['sai scheme ftp://', 'ftp://core:1'],
+    ['không phải URL', 'khong-phai-url'],
+    ['thiếu host', 'http://'],
+    ['chỉ có scheme https', 'https://'],
+  ])('CORE_BASE_URL %s → lỗi nêu tên CORE_BASE_URL', (_, v) => {
+    expect(problemsOf({ MONGODB_URI: URI, CORE_BASE_URL: v }).names).toEqual(['CORE_BASE_URL']);
+  });
+
+  it('CORE_BASE_URL có userinfo → lỗi nêu tên CORE_BASE_URL, không lộ user/mật khẩu', () => {
+    const e = problemsOf({ MONGODB_URI: URI, CORE_BASE_URL: 'http://tcuser:tc-pw-SECRET@core:8080' });
+    expect(e.names).toEqual(['CORE_BASE_URL']);
+    const text = `${e.message} ${JSON.stringify(e.problems)}`;
+    expect(text).not.toContain('tc-pw-SECRET');
+    expect(text).not.toContain('tcuser');
   });
 
   it.each([

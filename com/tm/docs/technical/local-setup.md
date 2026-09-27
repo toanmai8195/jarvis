@@ -67,13 +67,19 @@ pnpm --filter bff dev            # chỉ một app
 
 # BFF (Fastify) — bff không tự đọc .env, nạp env vào shell trước (như core)
 cp apps/bff/.env.example apps/bff/.env   # lần đầu; sửa nếu cần
-set -a; . apps/bff/.env; set +a          # nạp MONGODB_URI, BFF_* vào shell
-pnpm --filter bff dev                    # tsx watch src/server.ts — sửa file trong src/ là tự chạy lại
+set -a; . apps/bff/.env; set +a          # nạp MONGODB_URI, BFF_*, CORE_BASE_URL, OTEL_* vào shell
+pnpm --filter bff dev                    # tsx watch --import ./src/instrumentation.ts src/server.ts — sửa file trong src/ là tự chạy lại
 #    bff nghe 0.0.0.0:3000 — curl localhost:3000/healthz (sống), localhost:3000/readyz (ping MongoDB, hạn 2 s).
 #    bff khởi động được khi MongoDB chưa lên (client lười): /readyz trả 503 tới khi Mongo sẵn sàng.
-#    Log: pino JSON một dòng một object (time ISO, level chữ, msg, request_id), kể cả khi dev.
-pnpm --filter bff build                  # tsc --noEmit + tsup → apps/bff/dist/server.js (ESM)
-pnpm --filter bff start                  # node dist/server.js (cần env như trên)
+#    Log: pino JSON một dòng một object (time ISO, level chữ, msg, request_id, trace_id/span_id trong request), kể cả khi dev.
+#    OTel: instrumentation (src/instrumentation.ts) nạp bằng --import TRƯỚC server.ts, gửi trace + metric RED
+#    OTLP/HTTP tới otel-collector localhost:4318 (biến OTEL_*, bảng dưới; service.name=bff → job snaptix/bff).
+#    Thử trace xuyên service (cần core chạy ở CORE_BASE_URL, mặc định http://localhost:8080):
+#      curl 'localhost:3000/healthz?deep=1'   # bff → core /readyz → PG; 200 {"status":"ok","core":"ok"}, core lỗi → 503
+#    rồi mở Grafana Explore (http://localhost:3100, datasource tempo) → một trace có span bff → core → PG;
+#    dashboard RED chọn service = snaptix/bff.
+pnpm --filter bff build                  # tsc --noEmit + tsup → apps/bff/dist/{instrumentation,server}.js (ESM)
+pnpm --filter bff start                  # node --import ./dist/instrumentation.js dist/server.js (cần env như trên)
 ```
 
 ## Biến môi trường
@@ -88,19 +94,19 @@ Hạ tầng (`deploy/docker-compose.yml`) chạy được khi chưa có `deploy/
 | `CORE_HTTP_ADDR` | core (mặc định `:8080`, dạng `host:port`) | `:8080` |
 | `CORE_LOG_LEVEL` | core (mặc định `info`; `debug` \| `info` \| `warn` \| `error`) | `info` |
 | `CORE_SHUTDOWN_TIMEOUT` | core (mặc định `10s`; định dạng Go duration `time.ParseDuration`, vd `10s`, `1500ms`; `0`/âm/thiếu đơn vị → lỗi cấu hình). Hạn chờ request đang chạy khi nhận SIGTERM/SIGINT, hết hạn thì đóng cưỡng bức, exit `1` | `10s` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | core (`pkg/otelx`, OTLP/HTTP; mặc định `http://localhost:4318`; phải là URL `http://`/`https://` có host, sai → core thoát với log ERROR; collector không tới được → core vẫn chạy, log WARN). Không hỗ trợ `OTEL_EXPORTER_OTLP_PROTOCOL` (luôn HTTP/protobuf) | `http://localhost:4318` |
-| `OTEL_SERVICE_NAME` | core (mặc định `core`; thắng `service.name` trong `OTEL_RESOURCE_ATTRIBUTES`) | `core` |
-| `OTEL_RESOURCE_ATTRIBUTES` | core (mặc định rỗng; `key=value,...` thêm/đè thuộc tính resource, vd `service.namespace` — mặc định `snaptix`) | `deployment.environment.name=local` |
-| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | core (mặc định `parentbased_always_on`) | `parentbased_traceidratio`, `0.1` |
-| `OTEL_SDK_DISABLED` | core (mặc định `false`; `true` → không export trace/metric, log vẫn có `trace_id` khi request có `traceparent`) | `false` |
-| `OTEL_BSP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`, `OTEL_EXPORTER_OTLP_TIMEOUT` | core (mặc định `5000`, `60000`, `10000` ms: chu kỳ gửi span, chu kỳ gửi metric, hạn mỗi lần export) | `500`, `2000`, `1000` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | core (`pkg/otelx`), bff (`src/instrumentation.ts`) — OTLP/HTTP protobuf; mặc định `http://localhost:4318`; phải là URL `http://`/`https://` có host, sai → service thoát (core: log ERROR; bff: exit `1`, log JSON `fatal` nêu tên biến); collector không tới được → service vẫn chạy, log WARN. Core không hỗ trợ `OTEL_EXPORTER_OTLP_PROTOCOL` (luôn HTTP/protobuf), bff cũng luôn HTTP/protobuf | `http://localhost:4318` |
+| `OTEL_SERVICE_NAME` | core (mặc định `core`), bff (mặc định `bff`); thắng `service.name` trong `OTEL_RESOURCE_ATTRIBUTES` | `core` / `bff` |
+| `OTEL_RESOURCE_ATTRIBUTES` | core, bff (mặc định rỗng; `key=value,...` thêm/đè thuộc tính resource, vd `service.namespace` — mặc định `snaptix`) | `deployment.environment.name=local` |
+| `OTEL_TRACES_SAMPLER`, `OTEL_TRACES_SAMPLER_ARG` | core, bff (mặc định `parentbased_always_on`) | `parentbased_traceidratio`, `0.1` |
+| `OTEL_SDK_DISABLED` | core, bff (mặc định `false`; `true` → không export trace/metric. Core: log vẫn có `trace_id` khi request có `traceparent`. bff: không tạo SDK nên không có span, không chuyển tiếp `traceparent` sang core, log không có `trace_id`) | `false` |
+| `OTEL_BSP_SCHEDULE_DELAY`, `OTEL_METRIC_EXPORT_INTERVAL`, `OTEL_EXPORTER_OTLP_TIMEOUT` | core, bff (mặc định `5000`, `60000`, `10000` ms: chu kỳ gửi span, chu kỳ gửi metric, hạn mỗi lần export) | `500`, `2000`, `1000` |
 | `ANALYTICS_DATABASE_URL` | stats-worker, bff | `postgres://snaptix:snaptix@localhost:5433/analytics` |
 | `REDIS_URL` | core, bff | `redis://localhost:6379` |
 | `MONGODB_URI` | bff (bắt buộc, URL `mongodb://` hoặc `mongodb+srv://`; thiếu/rỗng/sai → bff thoát `1` với log JSON `fatal` nêu tên biến, không in giá trị) | `mongodb://localhost:27017/snaptix` |
 | `BFF_PORT` | bff (mặc định `3000`; số nguyên `1..65535`, sai → lỗi cấu hình) | `3000` |
 | `BFF_HOST` | bff (mặc định `0.0.0.0`) | `0.0.0.0` |
 | `BFF_LOG_LEVEL` | bff (mặc định `info`; `trace` \| `debug` \| `info` \| `warn` \| `error` \| `fatal`, sai → lỗi cấu hình) | `info` |
-| `CORE_BASE_URL` | bff | `http://localhost:8080` |
+| `CORE_BASE_URL` | bff (mặc định `http://localhost:8080`; URL `http://`/`https://` có host, không userinfo; sai → bff thoát `1` với log JSON `fatal` nêu tên biến, không in giá trị). `/healthz?deep=1` gọi `{CORE_BASE_URL}/readyz` | `http://localhost:8080` |
 | `CORE_SERVICE_TOKEN` | bff, core | chuỗi ngẫu nhiên |
 | `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | bff | từ Google Cloud Console |
 | `SESSION_SECRET` | bff | `openssl rand -base64 32` |

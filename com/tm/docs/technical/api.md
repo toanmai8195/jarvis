@@ -142,6 +142,13 @@ Idempotency-Key: 9a2e...
 | GET | `/api/admin/stats/export?report=` | analyst |
 | GET | `/api/admin/audit-logs` | super_admin |
 
+### Health (BFF, không xác thực)
+| Method | Path | Mô tả |
+|---|---|---|
+| GET | `/healthz` | Sống: `200 {"status":"ok"}`, không chạm DB hay core |
+| GET | `/healthz?deep=1` | Thêm gọi core `GET /readyz` **một lần**, hạn 2 s, không retry (kiểm trace bff → core → PG, P0-T12). Core `2xx` → `200 {"status":"ok","core":"ok"}`; core lỗi / không tới được / quá hạn → `503 {"status":"unavailable","core":"unavailable"}`. `deep` khác `1` coi như không có |
+| GET | `/readyz` | Sẵn sàng: ping MongoDB hạn 2 s, `200 {"status":"ok"}` hoặc `503 {"status":"unavailable"}`; không gọi core |
+
 ## Internal API (core)
 
 Header bắt buộc: `Authorization: Bearer <service-token>`, `X-User-Id`, `X-User-Role`.

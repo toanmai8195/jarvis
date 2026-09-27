@@ -124,3 +124,13 @@ Ngoài phạm vi (ghi lại, không làm):
 - **`/healthz/` (có `/` cuối) trả 404** (TC14 ghi nhận). Fastify 5 mặc định `ignoreTrailingSlash: false`.
 - **Quy trình**: trong bước 5, agent lỡ tạo `com/tm/app/apps/bff/tsconfig.tc-notypes.json` bằng `node -e` qua Bash (vi phạm quy tắc chỉ ghi bằng Edit/Write), rồi xoá ngay. File không có trong diff của task.
 - **CI**: `scripts/ci-app.sh origin/main` trên working tree chưa commit fail ở bước `git diff --exit-code pnpm-lock.yaml`, vì lockfile mới chưa commit. Sau khi commit thì bước này pass. P0-AT05/P0-AT11 kiểm trên CI thật khi đóng phase.
+
+## P0-T12
+
+- **Quyết định A1, lệch chữ với dòng task**: dòng task ghi "gọi thử `core /healthz`", nhưng `bff /healthz?deep=1` gọi **core `/readyz`**. Lý do: core `/healthz` không chạm PG, chỉ `/readyz` có span PG (`pool.acquire`), mà AT07/G10 đòi trace bff → core → PG. Làm vậy thì không phải sửa `com/tm/server`. Đã ghi vào `architecture.md` (mục Observability) và `api.md` (bảng Health của BFF).
+- **P0-T13 (graceful shutdown bff)**: chưa gọi `sdk.shutdown()` khi dừng, nên span/metric còn trong bộ đệm (≤ `OTEL_BSP_SCHEDULE_DELAY`) sẽ mất khi SIGTERM. P0-T13 nên flush telemetry song song với `app.close()`, có hạn, giống core (P0-T09/P0-T10). Hiện `createOtelSdk` trả về `NodeSDK` nhưng `instrumentation.ts` không giữ tham chiếu. P0-T13 cần export nó (vd qua `globalThis` hoặc một module chung), vì `server.ts` và `instrumentation.ts` là hai bundle riêng.
+- **P2-T05 (core client thật)**: `src/core-client/client.ts` dùng `fetch` global, agent mặc định, `AbortSignal.timeout`. Retry, circuit breaker, keep-alive agent riêng, service token để P2-T05. Span CLIENT do `instrumentation-undici` tạo, nên dùng `undici.request` cũng vẫn có span.
+- **Prometheus / dashboard**: series OTLP của bff (và core) không có nhãn `instance` (không đặt `service.instance.id`). Series mới xuất hiện với giá trị đã > 0 thì `rate()` bỏ mẫu đầu, nên loạt lỗi ngắn đầu tiên không lên Error rate (TC17). Muốn chính xác cần bật ingest created timestamp cho OTLP ở Prometheus (`deploy/`). Việc này ngoài phạm vi, cân nhắc khi làm observability phase sau.
+- **Dữ liệu rác trên Prometheus**: có series `job="bff"` (không namespace) lúc 01:33 UTC từ lần kiểm chứng của reviewer, và `snaptix/bff-tc09`, `snaptix/core-tc11` từ TC. Biến `service` của dashboard vẫn liệt kê chúng tới khi hết retention. Không ảnh hưởng test.
+- **Review nói cần `OTEL_SEMCONV_STABILITY_OPT_IN=http`**: không cần với `instrumentation-http` 0.222.0 (chỉ còn semconv ổn định), nên code không đặt.
+- **Quy trình**: mọi file trong `com/tm/app/**` được ghi bằng Edit/Write. `package.json`/lockfile do `pnpm add` cập nhật. Không có ghi file qua Bash trong cây `com/tm/app` hay `com/tm/server`.
